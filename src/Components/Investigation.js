@@ -302,6 +302,7 @@ export default function Investigation() {
     ecg: null,
     pft: null,
     audiometric: null,
+    
   })
 
   const [uploading, setUploading] = useState(false)
@@ -319,10 +320,10 @@ export default function Investigation() {
 
   // File status filters
   const [fileFilters, setFileFilters] = useState({
-    xrayfilm: "any", // any | uploaded | not_uploaded
-    ecg: "any", // any | uploaded | not_uploaded
-    pft: "any", // any | uploaded | not_uploaded
-    audiometric: "any", // any | uploaded | not_uploaded
+    xrayfilm: "any", 
+    ecg: "any", 
+    pft: "any", 
+    audiometric: "any", 
   })
 
   // Overall status filter
@@ -439,20 +440,23 @@ export default function Investigation() {
     const selectedEmployee = employees.find((emp) => emp.employee_id === employee_id)
     if (selectedEmployee) {
       setForm((prev) => ({
-        ...prev,
-        employee_id: selectedEmployee.employee_id,
-        age: selectedEmployee.age,
-        gender: selectedEmployee.gender,
-        barcode: selectedEmployee.barcode,
-        vitals:
-          typeof selectedEmployee.vitals === "string"
-            ? JSON.parse(selectedEmployee.vitals)
-            : selectedEmployee.vitals || prev.vitals,
-        patient_history: selectedEmployee.patient_history || "",
-        ecg_notes: selectedEmployee.ecg_notes || "",
-        pft_notes: selectedEmployee.pft_notes || "",
-        audiometry_notes: selectedEmployee.audiometry_notes || "",
-      }))
+          ...prev,
+          employee_id: selectedEmployee.employee_id,
+          age: selectedEmployee.age,
+          gender: selectedEmployee.gender,
+          barcode: selectedEmployee.barcode,
+          vitals:
+            typeof selectedEmployee.vitals === "string"
+              ? JSON.parse(selectedEmployee.vitals)
+              : selectedEmployee.vitals || prev.vitals,
+          patient_history: selectedEmployee.patient_history || "",
+          xray_notes: selectedEmployee.xray_notes || "",
+          xray_report: selectedEmployee.xray_report || "",
+          ecg_notes: selectedEmployee.ecg_notes || "",
+          pft_notes: selectedEmployee.pft_notes || "",
+          audiometry_notes: selectedEmployee.audiometry_notes || "",
+        }))
+
 
       // Populate existing file IDs
       setExistingFiles({
@@ -664,6 +668,7 @@ export default function Investigation() {
       })
 
       showToast("Investigation saved successfully!", "success")
+      await refreshData()
       handleBackToList()
       setUploading(false)
       setProgress(0)
