@@ -66,7 +66,7 @@ const Global = createGlobalStyle`
 /* ============ Styled Components ============ */
 const DashboardContainer = styled.div`
   padding: 28px;
-  margin-left: 60px; /* same as sidebar width */
+  margin-left: 60px;
   min-height: 100vh;
 `;
 
@@ -111,6 +111,18 @@ const Toggle = styled.button`
   border-radius: 12px;
   cursor: pointer;
   box-shadow: ${({ theme }) => theme.shadow};
+  transition: all 0.2s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.25);
+  }
+`;
+
+const ExportButton = styled(Toggle)`
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.secondary});
+  color: white;
+  border: none;
+  font-weight: 600;
 `;
 
 const MetricsGrid = styled.div`
@@ -255,6 +267,58 @@ const getAgeGroup = (age) => {
   return "55+";
 };
 
+// Categorize audiometry notes
+const categorizeAudiometry = (notes) => {
+  if (!notes) return "Unknown";
+  const lowerNotes = notes.toLowerCase();
+  if (lowerNotes.includes("normal study") || (lowerNotes.includes("normal") && !lowerNotes.includes("abnormal"))) {
+    return "Normal Study";
+  }
+  return "Abnormal";
+};
+
+// Categorize PFT notes
+const categorizePFT = (notes) => {
+  if (!notes) return "Unknown";
+  const lowerNotes = notes.toLowerCase();
+  
+  if (lowerNotes.includes("normal study") || lowerNotes.includes("normal")) return "Normal Study";
+  if (lowerNotes.includes("severe obstructive") || lowerNotes.includes("very severe")) return "Severe Obstructive";
+  if (lowerNotes.includes("moderate obstructive")) return "Moderate Obstructive";
+  if (lowerNotes.includes("mild obstructive")) return "Mild Obstructive";
+  if (lowerNotes.includes("obstructive")) return "Obstructive";
+  if (lowerNotes.includes("restrictive")) return "Restrictive";
+  if (lowerNotes.includes("mixed")) return "Mixed";
+  
+  return "Other";
+};
+
+// Categorize ECG notes
+const categorizeECG = (notes) => {
+  if (!notes) return "Unknown";
+  const lowerNotes = notes.toLowerCase();
+  
+  if (lowerNotes.includes("normal study") || 
+      lowerNotes.includes("normal ecg") || 
+      (lowerNotes.includes("normal") && !lowerNotes.includes("abnormal"))) {
+    return "Normal Study";
+  }
+  return "Abnormal";
+};
+
+// Categorize X-ray notes
+const categorizeXray = (notes) => {
+  if (!notes) return "Unknown";
+  const lowerNotes = notes.toLowerCase();
+  
+  if (lowerNotes.includes("no significant finding") || 
+      lowerNotes.includes("normal study") ||
+      lowerNotes.includes("normal")) {
+    return "Normal Study";
+  }
+  return "Findings Noted";
+};
+
 /* ============ Custom Tooltip (Glass) ============ */
 const GlassTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -280,16 +344,109 @@ const GlassTooltip = ({ active, payload, label }) => {
   );
 };
 
+/* ============ CSV Export Function ============ */
+const exportToCSV = (data, filename = "health-dashboard-export.csv") => {
+  if (!data || data.length === 0) {
+    alert("No data to export");
+    return;
+  }
+
+  // Define headers
+  const headers = [
+    "Employee ID",
+    "Name",
+    "Age",
+    "Gender",
+    "Department",
+    "BMI",
+    "BMI Status",
+    "Blood Pressure",
+    "BP Status",
+    "Height (cm)",
+    "Weight (kg)",
+    "SpO2",
+    "Audiometry Status",
+    "Audiometry Notes",
+    "PFT Status",
+    "PFT Notes",
+    "ECG Status",
+    "ECG Notes",
+    "X-Ray Status",
+    "X-Ray Notes",
+    "Patient History",
+    "Overall Status",
+    "Date"
+  ];
+
+  // Convert data to CSV rows
+  const csvRows = [
+    headers.join(","), // Header row
+    ...data.map(emp => {
+      const overall =
+        emp.bpStatus === "Normal" && emp.bmiStatus === "Normal" ? "Normal" :
+        (emp.bpStatus === "High Risk" || emp.bmiStatus === "Obese") ? "High Risk" : "Risk";
+      
+      // Escape quotes in text fields
+      const escapeCSV = (text) => {
+        if (!text) return "";
+        return String(text).replace(/"/g, '""');
+      };
+      
+      return [
+        emp.employee_id || "",
+        `"${escapeCSV(emp.employee_name || "N/A")}"`,
+        emp.age || "",
+        emp.gender || "",
+        `"${escapeCSV(emp.department || "N/A")}"`,
+        emp.bmi || "",
+        emp.bmiStatus || "",
+        emp.vitals?.blood_pressure || "",
+        emp.bpStatus || "",
+        emp.vitals?.height_cm || "",
+        emp.vitals?.weight_kg || "",
+        emp.vitals?.spo2 || "",
+        emp.audiometryStatus || "",
+        `"${escapeCSV(emp.audiometry_notes || "")}"`,
+        emp.pftStatus || "",
+        `"${escapeCSV(emp.pft_notes || "")}"`,
+        emp.ecgStatus || "",
+        `"${escapeCSV(emp.ecg_notes || "")}"`,
+        emp.xrayStatus || "",
+        `"${escapeCSV(emp.xray_notes || "")}"`,
+        `"${escapeCSV(emp.patient_history || "")}"`,
+        overall,
+        emp.date || ""
+      ].join(",");
+    })
+  ];
+
+  // Create CSV string
+  const csvString = csvRows.join("\n");
+
+  // Create blob and download
+  const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 /* ============ Main Component ============ */
 const HealthDashboard = () => {
-  const [themeName, setThemeName] = useState("dark");
-  const theme = themeName === "dark" ? darkTheme : lightTheme;
+  const [themeName, setThemeName] = useState("light");
+  const theme = themeName === "light" ? lightTheme : darkTheme;
+  
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
+  
   const [employees, setEmployees] = useState([]);
   const [investigations, setInvestigations] = useState([]);
   const [billings, setBillings] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [selectedGender, setSelectedGender] = useState("All");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("All");
@@ -312,12 +469,13 @@ const HealthDashboard = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [Labbaseurl]);
 
   const processedData = useMemo(() => investigations.map((inv) => {
     const emp = employees.find(e => e.employee_id === inv.employee_id);
     const vitals = typeof inv.vitals === "string" ? JSON.parse(inv.vitals) : inv.vitals;
     const bmi = calculateBMI(parseFloat(vitals?.weight_kg), parseFloat(vitals?.height_cm));
+    
     return {
       ...emp,
       ...inv,
@@ -326,6 +484,10 @@ const HealthDashboard = () => {
       bmiStatus: getBMIStatus(bmi),
       bpStatus: getBloodPressureStatus(vitals?.blood_pressure),
       ageGroup: getAgeGroup(inv.age || emp?.age),
+      audiometryStatus: categorizeAudiometry(inv.audiometry_notes),
+      pftStatus: categorizePFT(inv.pft_notes),
+      ecgStatus: categorizeECG(inv.ecg_notes),
+      xrayStatus: categorizeXray(inv.xray_notes),
     };
   }), [investigations, employees]);
 
@@ -337,14 +499,33 @@ const HealthDashboard = () => {
   });
 
   const total = filteredData.length || 1;
+  
+  // Existing metrics
   const normalCount = filteredData.filter(d => d.bmiStatus === "Normal" && d.bpStatus === "Normal").length;
   const riskCount = filteredData.filter(d => d.bpStatus === "Risk" || d.bmiStatus === "Overweight").length;
   const highRiskCount = filteredData.filter(d => d.bpStatus === "High Risk" || d.bmiStatus === "Obese").length;
-
   const normalPct = ((normalCount / total) * 100).toFixed(1);
   const riskPct = ((riskCount / total) * 100).toFixed(1);
   const highRiskPct = ((highRiskCount / total) * 100).toFixed(1);
   const avgBMI = (filteredData.reduce((s, d) => s + (d.bmi || 0), 0) / total).toFixed(2);
+
+  // Audiometry metrics
+  const normalAudiometryCount = filteredData.filter(d => d.audiometryStatus === "Normal Study").length;
+  const abnormalAudiometryCount = filteredData.filter(d => d.audiometryStatus === "Abnormal").length;
+
+  // PFT metrics
+  const normalPFTCount = filteredData.filter(d => d.pftStatus === "Normal Study").length;
+  const obstructivePFTCount = filteredData.filter(d => 
+    d.pftStatus.includes("Obstructive") && d.pftStatus !== "Normal Study"
+  ).length;
+
+  // ECG metrics
+  const normalECGCount = filteredData.filter(d => d.ecgStatus === "Normal Study").length;
+  const abnormalECGCount = filteredData.filter(d => d.ecgStatus === "Abnormal").length;
+
+  // X-ray metrics
+  const normalXrayCount = filteredData.filter(d => d.xrayStatus === "Normal Study").length;
+  const findingsXrayCount = filteredData.filter(d => d.xrayStatus === "Findings Noted").length;
 
   const departments = ["All", ...new Set(employees.map(e => e.department).filter(Boolean))];
   const ageGroups = ["All", "18-24", "25-34", "35-44", "45-54", "55+"];
@@ -376,11 +557,47 @@ const HealthDashboard = () => {
     { name: "High Risk", value: filteredData.filter(d => d.bpStatus === "High Risk").length },
   ];
 
+  // Audiometry distribution
+  const audiometryDistribution = [
+    { name: "Normal Study", value: normalAudiometryCount },
+    { name: "Abnormal", value: abnormalAudiometryCount },
+  ].filter(d => d.value > 0);
+
+  // PFT distribution
+  const pftDistribution = [
+    { name: "Normal Study", value: normalPFTCount },
+    { name: "Mild Obstructive", value: filteredData.filter(d => d.pftStatus === "Mild Obstructive").length },
+    { name: "Moderate Obstructive", value: filteredData.filter(d => d.pftStatus === "Moderate Obstructive").length },
+    { name: "Severe Obstructive", value: filteredData.filter(d => d.pftStatus === "Severe Obstructive").length },
+    { name: "Restrictive", value: filteredData.filter(d => d.pftStatus === "Restrictive").length },
+    { name: "Mixed", value: filteredData.filter(d => d.pftStatus === "Mixed").length },
+    { name: "Other", value: filteredData.filter(d => d.pftStatus === "Other").length },
+  ].filter(d => d.value > 0);
+
+  // ECG distribution
+  const ecgDistribution = [
+    { name: "Normal Study", value: normalECGCount },
+    { name: "Abnormal", value: abnormalECGCount },
+  ].filter(d => d.value > 0);
+
+  // X-ray distribution
+  const xrayDistribution = [
+    { name: "Normal Study", value: normalXrayCount },
+    { name: "Findings Noted", value: findingsXrayCount },
+  ].filter(d => d.value > 0);
+
   const healthIndicators = [
     { indicator: "BMI Normal", value: (filteredData.filter(d => d.bmiStatus === "Normal").length / total) * 100 },
     { indicator: "BP Normal", value: (filteredData.filter(d => d.bpStatus === "Normal").length / total) * 100 },
-    { indicator: "Completed", value: (filteredData.filter(d => d.status === "approved").length / total) * 100 },
+    { indicator: "Audiometry Normal", value: (normalAudiometryCount / total) * 100 },
+    { indicator: "PFT Normal", value: (normalPFTCount / total) * 100 },
+    { indicator: "ECG Normal", value: (normalECGCount / total) * 100 },
+    { indicator: "X-ray Normal", value: (normalXrayCount / total) * 100 },
   ];
+
+  const handleExportCSV = () => {
+    exportToCSV(filteredData, `health-dashboard-${new Date().toISOString().split('T')[0]}.csv`);
+  };
 
   if (loading) {
     return (
@@ -408,8 +625,11 @@ const HealthDashboard = () => {
             <Subtitle>Comprehensive monitoring & risk assessment</Subtitle>
           </div>
           <RightHeader>
+            <ExportButton onClick={handleExportCSV}>
+              📊 Export to CSV
+            </ExportButton>
             <Toggle onClick={() => setThemeName(t => t === "dark" ? "light" : "dark")}>
-              Toggle {themeName === "dark" ? "Light" : "Dark"}
+              {themeName === "dark" ? "☀️" : "🌙"} Toggle {themeName === "dark" ? "Light" : "Dark"}
             </Toggle>
           </RightHeader>
         </Header>
@@ -451,6 +671,26 @@ const HealthDashboard = () => {
             <MetricTitle>Average BMI</MetricTitle>
             <MetricValue color={theme.colors.accent}>{avgBMI}</MetricValue>
             <MetricSubtext>{avgBMI < 25 ? "Healthy" : "Needs attention"}</MetricSubtext>
+          </MetricCard>
+          <MetricCard>
+            <MetricTitle>Audiometry - Normal</MetricTitle>
+            <MetricValue color={theme.colors.success}>{normalAudiometryCount}</MetricValue>
+            <MetricSubtext>{abnormalAudiometryCount} abnormal cases</MetricSubtext>
+          </MetricCard>
+          <MetricCard>
+            <MetricTitle>PFT - Normal</MetricTitle>
+            <MetricValue color={theme.colors.success}>{normalPFTCount}</MetricValue>
+            <MetricSubtext>{obstructivePFTCount} obstructive cases</MetricSubtext>
+          </MetricCard>
+          <MetricCard>
+            <MetricTitle>ECG - Normal</MetricTitle>
+            <MetricValue color={theme.colors.success}>{normalECGCount}</MetricValue>
+            <MetricSubtext>{abnormalECGCount} abnormal cases</MetricSubtext>
+          </MetricCard>
+          <MetricCard>
+            <MetricTitle>X-Ray - Normal</MetricTitle>
+            <MetricValue color={theme.colors.success}>{normalXrayCount}</MetricValue>
+            <MetricSubtext>{findingsXrayCount} with findings</MetricSubtext>
           </MetricCard>
         </MetricsGrid>
 
@@ -539,6 +779,82 @@ const HealthDashboard = () => {
           </ChartCard>
 
           <ChartCard>
+            <ChartTitle>Audiometry Test Results</ChartTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={audiometryDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
+                     labelLine={false}
+                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  {audiometryDistribution.map((entry, i) => (
+                    <Cell key={i} fill={
+                      entry.name === "Normal Study" ? theme.colors.success :
+                      theme.colors.danger
+                    } />
+                  ))}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard>
+            <ChartTitle>PFT (Pulmonary Function Test) Results</ChartTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={pftDistribution}>
+                <defs>
+                  <linearGradient id="barPFT" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={theme.colors.primary} />
+                    <stop offset="100%" stopColor={theme.colors.accent} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={theme.colors.grid} />
+                <XAxis dataKey="name" stroke={theme.colors.subtext} angle={-45} textAnchor="end" height={100} />
+                <YAxis stroke={theme.colors.subtext} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="value" fill="url(#barPFT)" radius={[8,8,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard>
+            <ChartTitle>ECG Test Results</ChartTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={ecgDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
+                     labelLine={false}
+                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  {ecgDistribution.map((entry, i) => (
+                    <Cell key={i} fill={
+                      entry.name === "Normal Study" ? theme.colors.success :
+                      theme.colors.danger
+                    } />
+                  ))}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard>
+            <ChartTitle>Chest X-Ray Results</ChartTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={xrayDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
+                     labelLine={false}
+                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  {xrayDistribution.map((entry, i) => (
+                    <Cell key={i} fill={
+                      entry.name === "Normal Study" ? theme.colors.success :
+                      theme.colors.warning
+                    } />
+                  ))}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard>
             <ChartTitle>Health Indicators Overview</ChartTitle>
             <ResponsiveContainer width="100%" height={300}>
               <RadarChart data={healthIndicators}>
@@ -553,12 +869,13 @@ const HealthDashboard = () => {
         </ChartsGrid>
 
         <TableContainer>
-          <ChartTitle>Employee Health Details</ChartTitle>
+          <ChartTitle>Employee Health Details (Top 20)</ChartTitle>
           <Table>
             <thead>
               <tr>
-                <th>Employee ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Department</th>
-                <th>BMI</th><th>BMI Status</th><th>BP</th><th>BP Status</th><th>Overall Status</th>
+                <th>Employee ID</th><th>Name</th><th>Age</th><th>Gender</th>
+                <th>BMI</th><th>BP</th><th>Audiometry</th><th>PFT</th>
+                <th>ECG</th><th>X-Ray</th><th>Overall</th>
               </tr>
             </thead>
             <tbody>
@@ -572,11 +889,20 @@ const HealthDashboard = () => {
                     <td>{emp.employee_name || "N/A"}</td>
                     <td>{emp.age}</td>
                     <td>{emp.gender}</td>
-                    <td>{emp.department?.substring(0, 30) || "N/A"}</td>
-                    <td>{emp.bmi}</td>
-                    <td><StatusBadge status={emp.bmiStatus}>{emp.bmiStatus}</StatusBadge></td>
-                    <td>{emp.vitals?.blood_pressure || "N/A"}</td>
-                    <td><StatusBadge status={emp.bpStatus}>{emp.bpStatus}</StatusBadge></td>
+                    <td><StatusBadge status={emp.bmiStatus}>{emp.bmi}</StatusBadge></td>
+                    <td><StatusBadge status={emp.bpStatus}>{emp.vitals?.blood_pressure || "N/A"}</StatusBadge></td>
+                    <td><StatusBadge status={emp.audiometryStatus === "Normal Study" ? "Normal" : "Risk"}>
+                      {emp.audiometryStatus}
+                    </StatusBadge></td>
+                    <td><StatusBadge status={emp.pftStatus === "Normal Study" ? "Normal" : "Risk"}>
+                      {emp.pftStatus}
+                    </StatusBadge></td>
+                    <td><StatusBadge status={emp.ecgStatus === "Normal Study" ? "Normal" : "Risk"}>
+                      {emp.ecgStatus}
+                    </StatusBadge></td>
+                    <td><StatusBadge status={emp.xrayStatus === "Normal Study" ? "Normal" : "Risk"}>
+                      {emp.xrayStatus}
+                    </StatusBadge></td>
                     <td><StatusBadge status={overall}>{overall}</StatusBadge></td>
                   </tr>
                 );

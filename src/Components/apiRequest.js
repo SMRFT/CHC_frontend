@@ -18,7 +18,6 @@ const apiRequest = async (url, method = "GET", data = null, headers = {}) => {
     const defaultHeaders = {
       "Content-Type": "application/json",
       Authorization: token, // Use 'Bearer' if backend expects it
-      "Branch-Code": branch,
     };
 
     const config = {
