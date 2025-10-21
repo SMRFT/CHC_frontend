@@ -1,4 +1,4 @@
-"use client"
+
 
 import { useState, useEffect, useMemo } from "react"
 import styled from "styled-components"
@@ -275,6 +275,15 @@ const SmallNote = styled.div`
   margin-top: 6px;
   word-break: break-all;
 `
+const DEFAULT_XRAY_REPORT = `The cardiac size and configuration are within normal limits.
+The lung fields are clear. The broncho-vascular markings are normal.
+The costo- and cardio-phrenic angles are free.
+Both domes of the diaphragm are normal.
+No abnormality is seen in the bones and soft tissues of the chest wall.
+The visualized abdominal structures appear normal.
+No significant finding in the lungs or mediastinum.`;
+
+const DEFAULT_XRAY_NOTES = `No significant finding in the lungs or mediastinum.`;
 
 export default function Investigation() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
@@ -450,8 +459,8 @@ export default function Investigation() {
               ? JSON.parse(selectedEmployee.vitals)
               : selectedEmployee.vitals || prev.vitals,
           patient_history: selectedEmployee.patient_history || "",
-          xray_notes: selectedEmployee.xray_notes || "",
-          xray_report: selectedEmployee.xray_report || "",
+          xray_notes: selectedEmployee.xray_notes || DEFAULT_XRAY_NOTES,
+          xray_report: selectedEmployee.xray_report || DEFAULT_XRAY_REPORT,
           ecg_notes: selectedEmployee.ecg_notes || "",
           pft_notes: selectedEmployee.pft_notes || "",
           audiometry_notes: selectedEmployee.audiometry_notes || "",
@@ -636,8 +645,8 @@ export default function Investigation() {
       fd.append("gender", form.gender)
       fd.append("barcode", form.barcode)
       fd.append("patient_history", form.patient_history)
-      fd.append("xray_notes", form.xray_notes)
-      fd.append("xray_report", form.xray_report)
+      fd.append("xray_notes", form.xray_notes || DEFAULT_XRAY_NOTES);
+      fd.append("xray_report", form.xray_report || DEFAULT_XRAY_REPORT);
       fd.append("ecg_notes", form.ecg_notes)
       fd.append("pft_notes", form.pft_notes)
       fd.append("audiometry_notes", form.audiometry_notes)
@@ -668,8 +677,8 @@ export default function Investigation() {
       })
 
       showToast("Investigation saved successfully!", "success")
-      await refreshData()
       handleBackToList()
+      await refreshData()
       setUploading(false)
       setProgress(0)
       // Optionally refreshData();
