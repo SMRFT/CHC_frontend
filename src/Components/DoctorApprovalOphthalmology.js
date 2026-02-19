@@ -49,7 +49,7 @@ const GlobalDatePickerStyles = `
   }
   
   .react-datepicker__header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-bottom: none;
     padding-top: 16px;
   }
@@ -71,7 +71,7 @@ const GlobalDatePickerStyles = `
   }
   
   .react-datepicker__day--selected {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-radius: 8px;
     color: white;
     font-weight: 700;
@@ -92,9 +92,9 @@ if (typeof document !== 'undefined') {
 
 const Container = styled.div`
   padding: 24px;
-  margin-left: 150px;
+  margin-left: 260px; /* Match sidebar desktop width */
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #F9F7F7; /* New color scheme - light background */
   position: relative;
   
   &::before {
@@ -111,7 +111,7 @@ const Container = styled.div`
   }
 
   @media (max-width: 1024px) {
-    margin-left: 220px;
+    margin-left: 240px; /* Match sidebar tablet width */
     padding: 20px;
   }
   @media (max-width: 768px) {
@@ -161,7 +161,7 @@ const IconWrapper = styled.div`
   width: 56px;
   height: 56px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   display: grid;
   place-items: center;
   box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
@@ -178,7 +178,7 @@ const SectionTitle = styled.h2`
   color: #1a202c;
   font-size: 32px;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -204,7 +204,7 @@ const SearchWrap = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #f8fafc;
+  background: #F9F7F7; /* New color scheme - light background */
   border-radius: 16px;
   padding: 12px 16px;
   border: 2px solid transparent;
@@ -243,7 +243,7 @@ const ClearBtn = styled.button`
   border-radius: 14px;
   cursor: pointer;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   font-weight: 700;
   font-size: 14px;
@@ -293,7 +293,7 @@ const TableWrapper = styled.div`
     border-radius: 10px; 
   }
   &::-webkit-scrollbar-thumb { 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-radius: 10px; 
   }
   &::-webkit-scrollbar-thumb:hover { 
@@ -320,7 +320,7 @@ const Table = styled.table`
 `;
 
 const Th = styled.th`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 16px 12px;
   text-align: center;
@@ -390,13 +390,13 @@ const TdRow = styled.tr`
 
 const Button = styled.button`
   padding: 10px 18px;
-  background: ${(p) => p.disabled 
-    ? "linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)" 
+  background: ${(p) => p.disabled
+    ? "linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)"
     : "linear-gradient(135deg, #10b981 0%, #059669 100%)"};
   color: white;
   border: none;
   border-radius: 12px;
-  cursor: ${(p)=>p.disabled?"not-allowed":"pointer"};
+  cursor: ${(p) => p.disabled ? "not-allowed" : "pointer"};
   font-weight: 700;
   font-size: 13px;
   transition: all 0.3s ease;
@@ -404,13 +404,13 @@ const Button = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: ${(p) => p.disabled 
-    ? "none" 
+  box-shadow: ${(p) => p.disabled
+    ? "none"
     : "0 4px 12px rgba(16, 185, 129, 0.3)"};
 
   &:hover {
-    transform: ${(p)=>p.disabled?"none":"translateY(-2px)"};
-    box-shadow: ${(p)=>p.disabled?"none":"0 6px 20px rgba(16, 185, 129, 0.4)"};
+    transform: ${(p) => p.disabled ? "none" : "translateY(-2px)"};
+    box-shadow: ${(p) => p.disabled ? "none" : "0 6px 20px rgba(16, 185, 129, 0.4)"};
   }
 
   &:active { 
@@ -429,10 +429,10 @@ const StatusBadge = styled.span`
   align-items: center;
   gap: 6px;
   color: white;
-  background: ${(p)=> p.status==="approved" 
+  background: ${(p) => p.status === "approved"
     ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
     : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"};
-  box-shadow: ${(p)=> p.status==="approved"
+  box-shadow: ${(p) => p.status === "approved"
     ? "0 4px 12px rgba(16, 185, 129, 0.3)"
     : "0 4px 12px rgba(245, 158, 11, 0.3)"};
 `;
@@ -520,8 +520,8 @@ const NotificationContainer = styled.div`
 `;
 
 const NotificationBox = styled.div`
-  background: ${(p)=> p.type==="success" 
-    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" 
+  background: ${(p) => p.type === "success"
+    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
     : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"};
   color: white;
   padding: 16px 20px;
@@ -657,7 +657,7 @@ export default function DoctorApprovalOphthalmology() {
           </IconWrapper>
           <SectionTitle>Ophthalmology Dashboard</SectionTitle>
         </TitleSection>
-        
+
         <FiltersBar>
           <SearchWrap>
             <Search size={20} color="#667eea" />
@@ -715,9 +715,9 @@ export default function DoctorApprovalOphthalmology() {
           </div>
 
           {(searchInput || startDate || endDate || statusFilter) && (
-            <ClearBtn onClick={() => { 
-              setSearchInput(""); 
-              setDebouncedSearch(""); 
+            <ClearBtn onClick={() => {
+              setSearchInput("");
+              setDebouncedSearch("");
               setStartDate(null);
               setEndDate(null);
               setStatusFilter("");
@@ -760,8 +760,8 @@ export default function DoctorApprovalOphthalmology() {
                 filtered.map((op) => {
                   let visualAcuity = {};
                   try {
-                    visualAcuity = typeof op.visual_acuity === 'string' 
-                      ? JSON.parse(op.visual_acuity) 
+                    visualAcuity = typeof op.visual_acuity === 'string'
+                      ? JSON.parse(op.visual_acuity)
                       : op.visual_acuity || {};
                   } catch (e) {
                     visualAcuity = op.visual_acuity || {};
@@ -774,10 +774,10 @@ export default function DoctorApprovalOphthalmology() {
                           <Calendar size={14} />
                           {op.date
                             ? new Date(op.date).toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              })
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })
                             : "-"}
                         </InfoBadge>
                       </Td>
@@ -788,16 +788,16 @@ export default function DoctorApprovalOphthalmology() {
                           {op.employee_name || "-"}
                         </InfoBadge>
                       </Td>
-                      
+
                       <Td>
                         <InfoBadge>
                           {op.employee_id || "-"}
                         </InfoBadge>
                       </Td>
-                      
+
                       <Td>{op.gender || "-"}</Td>
                       <Td>{op.age || "-"}</Td>
-                      
+
                       <Td>
                         <InfoBadge>
                           {op.barcode || "-"}
@@ -916,18 +916,18 @@ export default function DoctorApprovalOphthalmology() {
                       <Td style={{ maxWidth: '200px', textAlign: 'left', fontSize: '12.5px', lineHeight: '1.6' }}>
                         {op.patient_complaints || "-"}
                       </Td>
-                      
+
                       <Td style={{ maxWidth: '200px', textAlign: 'left', fontSize: '12.5px', lineHeight: '1.6' }}>
                         {op.remarks || "-"}
                       </Td>
-                      
+
                       <Td>
                         <StatusBadge status={op.status}>
                           {op.status === "approved" ? <CheckCircle size={14} /> : <Clock size={14} />}
                           {op.status || "pending"}
                         </StatusBadge>
                       </Td>
-                      
+
                       <Td>
                         <Button
                           onClick={() => handleApprove(op.barcode)}

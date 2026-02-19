@@ -8,16 +8,29 @@ import "react-datepicker/dist/react-datepicker.css"
 
 // Styled Components (existing)
 const Container = styled.div`
-  max-width: 900px;
-  margin: 24px auto;
+  max-width: 1600px;
+  /* margin: 24px auto; */
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-  background: linear-gradient(180deg, #ffffff, #fbfbff);
+  background: linear-gradient(180deg, #ffffff, #F9F7F7);
+  margin-left: 260px; /* Match sidebar desktop width */
+  margin-top: 24px;
+  margin-bottom: 24px;
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    margin: 24px auto; /* Centered on mobile */
+    padding: 1rem;
+  }
 `
 
 const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   border-radius: 1rem;
@@ -236,7 +249,7 @@ const TextArea = styled.textarea`
 
 const Button = styled.button`
   padding: 12px 20px; border-radius: 12px; cursor: pointer; border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%); color: white; font-weight: 600;
   transition: 0.3s; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; position: relative; overflow: hidden;
   &::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: left 0.5s; }
@@ -311,7 +324,7 @@ export default function Investigation() {
     ecg: null,
     pft: null,
     audiometric: null,
-    
+
   })
 
   const [uploading, setUploading] = useState(false)
@@ -329,10 +342,10 @@ export default function Investigation() {
 
   // File status filters
   const [fileFilters, setFileFilters] = useState({
-    xrayfilm: "any", 
-    ecg: "any", 
-    pft: "any", 
-    audiometric: "any", 
+    xrayfilm: "any",
+    ecg: "any",
+    pft: "any",
+    audiometric: "any",
   })
 
   // Overall status filter
@@ -365,7 +378,7 @@ export default function Investigation() {
 
   // Fetch employees & investigations on mount
   useEffect(() => {
-    ;(async () => {
+    ; (async () => {
       try {
         const merged = await refreshData()
         if (merged.length > 0) showToast(`${merged.length} employees loaded successfully`, "success")
@@ -449,22 +462,22 @@ export default function Investigation() {
     const selectedEmployee = employees.find((emp) => emp.employee_id === employee_id)
     if (selectedEmployee) {
       setForm((prev) => ({
-          ...prev,
-          employee_id: selectedEmployee.employee_id,
-          age: selectedEmployee.age,
-          gender: selectedEmployee.gender,
-          barcode: selectedEmployee.barcode,
-          vitals:
-            typeof selectedEmployee.vitals === "string"
-              ? JSON.parse(selectedEmployee.vitals)
-              : selectedEmployee.vitals || prev.vitals,
-          patient_history: selectedEmployee.patient_history || "",
-          xray_notes: selectedEmployee.xray_notes || DEFAULT_XRAY_NOTES,
-          xray_report: selectedEmployee.xray_report || DEFAULT_XRAY_REPORT,
-          ecg_notes: selectedEmployee.ecg_notes || "",
-          pft_notes: selectedEmployee.pft_notes || "",
-          audiometry_notes: selectedEmployee.audiometry_notes || "",
-        }))
+        ...prev,
+        employee_id: selectedEmployee.employee_id,
+        age: selectedEmployee.age,
+        gender: selectedEmployee.gender,
+        barcode: selectedEmployee.barcode,
+        vitals:
+          typeof selectedEmployee.vitals === "string"
+            ? JSON.parse(selectedEmployee.vitals)
+            : selectedEmployee.vitals || prev.vitals,
+        patient_history: selectedEmployee.patient_history || "",
+        xray_notes: selectedEmployee.xray_notes || DEFAULT_XRAY_NOTES,
+        xray_report: selectedEmployee.xray_report || DEFAULT_XRAY_REPORT,
+        ecg_notes: selectedEmployee.ecg_notes || "",
+        pft_notes: selectedEmployee.pft_notes || "",
+        audiometry_notes: selectedEmployee.audiometry_notes || "",
+      }))
 
 
       // Populate existing file IDs
@@ -814,19 +827,19 @@ export default function Investigation() {
               endDate ||
               Object.values(fileFilters).some((v) => v !== "any") ||
               statusFilter !== "any") && (
-              <ClearBtn
-                onClick={() => {
-                  setSearchInput("")
-                  setDebouncedSearch("")
-                  setStartDate(null)
-                  setEndDate(null)
-                  setFileFilters({ xrayfilm: "any", ecg: "any", pft: "any", audiometric: "any" })
-                  setStatusFilter("any")
-                }}
-              >
-                Clear Filters
-              </ClearBtn>
-            )}
+                <ClearBtn
+                  onClick={() => {
+                    setSearchInput("")
+                    setDebouncedSearch("")
+                    setStartDate(null)
+                    setEndDate(null)
+                    setFileFilters({ xrayfilm: "any", ecg: "any", pft: "any", audiometric: "any" })
+                    setStatusFilter("any")
+                  }}
+                >
+                  Clear Filters
+                </ClearBtn>
+              )}
 
             {/* Export actions */}
             <ExportWrap>

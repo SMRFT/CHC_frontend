@@ -19,60 +19,54 @@ import {
 /* ========== Styled Components ========== */
 
 const SidebarContainer = styled.div`
-  width: fit-content;
-  min-width: 240px;
-  max-width: 320px;
-  min-height: 100vh;
-  height: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 260px; /* Fixed width for desktop */
+  height: 100vh;
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   display: flex;
   flex-direction: column;
-  padding: 20px 15px;
-  padding-bottom: 30px;
+  padding: 20px 15px 30px;
   position: fixed;
   top: 0;
   left: 0;
+  bottom: 0; /* Align to bottom */
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-  z-index: 1000;
-  transition: transform 0.3s ease;
+  z-index: 1050; /* Higher z-index */
+  transition: transform 0.3s ease-in-out;
   overflow-y: auto;
 
-  &::-webkit-scrollbar { width: 8px; }
-  &::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
-  &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
-  &::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+  /* Scrollbar Styling */
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+  &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+  &::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
 
+  /* Tablet & Mobile Styles */
   @media (max-width: 1024px) {
-    min-width: 220px;
-    max-width: 280px;
-    padding: 20px 12px;
+    width: 240px;
   }
+
   @media (max-width: 768px) {
     transform: ${({ isOpen }) => (isOpen ? 'translateX(0)' : 'translateX(-100%)')};
-    min-width: 260px;
-    max-width: 300px;
-    padding: 20px 15px;
+    width: 280px;
+    max-width: 85vw; /* Responsive width */
+    box-shadow: 0 0 50px rgba(0,0,0,0.5); /* Stronger shadow when open */
   }
+
   @media (max-width: 480px) {
     width: 85vw;
-    min-width: unset;
-    max-width: 320px;
-    padding: 20px 15px;
-    padding-bottom: 30px;
-  }
-  @media (max-width: 360px) {
-    width: 90vw;
-    max-width: 280px;
-    padding: 20px 12px;
   }
 `;
 
 const Overlay = styled.div`
   display: none;
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  backdrop-filter: blur(3px); /* Add blur effect */
+  z-index: 1040; /* Below sidebar, above everything else */
+  opacity: ${({ isOpen }) => (isOpen ? 1 : 0)};
+  transition: opacity 0.3s ease;
 
   @media (max-width: 768px) {
     display: ${({ isOpen }) => (isOpen ? 'block' : 'none')};
@@ -85,7 +79,7 @@ const MobileToggle = styled.button`
   top: 20px;
   left: 20px;
   z-index: 1001;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -254,17 +248,17 @@ export default function Sidebar() {
   ]), []);
 
   // Filter by role
-const filteredLinks = useMemo(() => {
-  if (role === "Company") {
-    const allowed = new Set(["/Dashboard", "/CHCReport"]);
-    return allLinks.filter(l => allowed.has(l.path));
-  }
-  if (role === "Admin") {
-    const exclude = new Set(["/Dashboard", "/CHCReport"]);
-    return allLinks.filter(l => !exclude.has(l.path));
-  }
-  return [];
-}, [role, allLinks]);
+  const filteredLinks = useMemo(() => {
+    if (role === "Company") {
+      const allowed = new Set(["/Dashboard", "/CHCReport"]);
+      return allLinks.filter(l => allowed.has(l.path));
+    }
+    if (role === "Admin") {
+      const exclude = new Set(["/Dashboard", "/CHCReport"]);
+      return allLinks.filter(l => !exclude.has(l.path));
+    }
+    return [];
+  }, [role, allLinks]);
 
 
   const toggleSidebar = () => setIsOpen(o => !o);

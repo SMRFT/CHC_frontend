@@ -10,283 +10,213 @@ import "react-toastify/dist/ReactToastify.css"
 
 const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
-// Styled Components
+// --- Responsive Styled Components ---
+
 const Container = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  margin-left: 100px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
+  background: #F9F7F7;
+  margin-left: 260px; /* Desktop Sidebar */
+  padding: clamp(1rem, 3vw, 2rem);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+
+  @media (max-width: 1024px) {
+    margin-left: 0; /* Full width on mobile/tablet */
+  }
 `
 
 const Card = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: clamp(1rem, 4vw, 2.5rem);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
 `
 
 const Title = styled.h2`
-  color: #2d3748;
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1.25rem;
-  text-align: center;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #3F72AF, #112D4E);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 2rem;
 `
 
 const FiltersBar = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-`
-
-const SearchWrap = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 8px 12px;
-  border: 2px solid #e2e8f0;
-  input {
-    width: 240px;
-    border: none;
-    outline: none;
-    font-weight: 600;
-    color: #2d3748;
+  margin-bottom: 2rem;
+  
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
   }
 `
 
-const DatePickerWrap = styled.div`
+const FilterItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #fff;
-  border-radius: 12px;
-  padding: 8px 12px;
   border: 2px solid #e2e8f0;
-
-  .react-datepicker-wrapper { width: 180px; }
-  input {
+  border-radius: 12px;
+  padding: 10px 14px;
+  
+  span { font-weight: 700; color: #4a5568; white-space: nowrap; font-size: 0.9rem; }
+  
+  input, select {
+    border: none;
+    outline: none;
     width: 100%;
-    border: none;
-    outline: none;
-    font-weight: 600;
-    color: #2d3748;
-    cursor: pointer;
-  }
-`
-
-const StatusFilterWrap = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 8px 12px;
-  border: 2px solid #e2e8f0;
-
-  select {
-    width: 180px;
-    border: none;
-    outline: none;
     font-weight: 600;
     color: #2d3748;
     background: transparent;
-    cursor: pointer;
   }
-`
-
-const ClearBtn = styled.button`
-  background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s;
-  &:hover { background: #667eea; color: #fff; }
 `
 
 const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2rem;
-  background: white;
-`
+  margin-top: 1rem;
 
-const TableHeader = styled.thead`
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  th {
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-`
-
-const TableBody = styled.tbody`
-  tr {
-    transition: all 0.3s ease;
-    &:nth-child(even) { background-color: #f8fafc; }
-    &:hover {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-      transform: translateY(-1px);
+  @media (max-width: 768px) {
+    thead { display: none; } /* Hide headers on mobile */
+    tr {
+      display: block;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      margin-bottom: 1rem;
+      padding: 1rem;
+    }
+    td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      text-align: right;
+      border-bottom: 1px solid #f1f5f9;
+      
+      &:before {
+        content: attr(data-label);
+        font-weight: 700;
+        text-align: left;
+        color: #3F72AF;
+      }
+      &:last-child { border-bottom: none; display: block; text-align: center; padding-top: 15px; }
     }
   }
-  td {
-    padding: 1rem;
-    text-align: center;
-    color: #4a5568;
-    font-weight: 500;
-    border-bottom: 1px solid #e2e8f0;
-  }
+`
+
+const Th = styled.th`
+  background: #112D4E;
+  color: white;
+  padding: 14px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  text-align: left;
+  &:first-child { border-radius: 12px 0 0 0; }
+  &:last-child { border-radius: 0 12px 0 0; }
+`
+
+const Td = styled.td`
+  padding: 14px;
+  border-bottom: 1px solid #edf2f7;
+  color: #4a5568;
+  font-size: 0.95rem;
 `
 
 const ActionButton = styled.button`
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #3F72AF;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
+  padding: 8px 16px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.3s;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-    background: linear-gradient(135deg, #5a6fd8, #6b46a5);
-  }
-  &:active { transform: translateY(0); }
+  width: 100%;
+  max-width: 200px;
 `
 
-const BackButton = styled.button`
-  background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.3s;
+// --- Form Specific Mobile Styles ---
+
+const FormResponsiveTable = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 16px;
   margin-bottom: 2rem;
-  font-size: 0.9rem;
-  display: flex; align-items: center; gap: 0.5rem;
-  &:hover {
-    background: #667eea;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+  border: 1px solid #e2e8f0;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr; /* Stack inputs on mobile */
+  }
+
+  .field-title {
+    font-weight: 800;
+    color: #112D4E;
+    display: flex;
+    align-items: center;
   }
 `
 
-const FormSection = styled.div` margin-bottom: 2.5rem; `
-const SectionTitle = styled.h3`
-  color: #2d3748; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; padding-left: 0.5rem; border-left: 4px solid #667eea;
-`
-
-const FormTable = styled.table`
-  width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  background: white; margin-bottom: 1.5rem;
-`
-
-const FormTableHeader = styled.thead`
-  background: linear-gradient(135deg, #f7fafc, #edf2f7);
-  th { color: #2d3748; padding: 1rem; text-align: center; font-weight: 600; font-size: 0.9rem; border-bottom: 2px solid #e2e8f0; }
-`
-
-const FormTableBody = styled.tbody`
-  td {
-    padding: 1rem; text-align: center; color: #4a5568; font-weight: 500; border-bottom: 1px solid #f1f5f9;
-    &:first-child { font-weight: 600; background: #f8fafc; color: #2d3748; }
-  }
-`
-
-const StyledInput = styled.input`
-  width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; transition: 0.3s; background: white;
-  &:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); transform: translateY(-1px); }
-  &:hover { border-color: #cbd5e0; }
-`
-
-const StyledTextarea = styled.textarea`
-  width: 100%; min-height: 120px; padding: 1rem; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 0.9rem; font-family: inherit; transition: 0.3s; resize: vertical; background: white;
-  &:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-  &:hover { border-color: #cbd5e0; }
+const EmployeeInfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 1rem;
 `
 
 const TwoColumnGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
 `
 
-const TextareaColumn = styled.div`
-  display: flex;
-  flex-direction: column;
+const StyledInput = styled.input`
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  &:focus { border-color: #3F72AF; outline: none; }
 `
 
-const EmployeeInfoCard = styled.div`
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; backdrop-filter: blur(10px);
+const StyledTextarea = styled.textarea`
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
 `
-
-const EmployeeInfoGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem; margin-top: 1rem;
-`
-
-const EmployeeInfoItem = styled.div`
-  background: rgba(255, 255, 255, 0.7); padding: 1rem; border-radius: 12px; text-align: center; border: 1px solid rgba(102, 126, 234, 0.1);
-  .label { font-size: 0.8rem; color: #718096; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
-  .value { font-size: 1.1rem; color: #2d3748; font-weight: 700; }
-`
-
-const EmployeeInfoTitle = styled.h3` color: #2d3748; font-size: 1.2rem; font-weight: 600; margin: 0; text-align: center; `
 
 const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #48bb78, #38a169);
-  color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-weight: 600; cursor: pointer; transition: 0.3s;
-  font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; width: 200px; margin: 2rem auto 0; display: block;
-  &:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(72, 187, 120, 0.3); background: linear-gradient(135deg, #38a169, #2f855a); }
-  &:active { transform: translateY(-1px); }
-`
-
-const NoDataMessage = styled.p`
-  text-align: center; color: #718096; font-size: 1.1rem; padding: 3rem; background: rgba(255, 255, 255, 0.5); border-radius: 12px; border: 2px dashed #cbd5e0;
+  background: #48bb78;
+  color: white;
+  border: none;
+  padding: 1rem 3rem;
+  border-radius: 50px;
+  font-weight: 700;
+  margin: 2rem auto;
+  display: block;
+  cursor: pointer;
+  @media (max-width: 480px) { width: 100%; }
 `
 
 const Ophthalmology = () => {
   const [employees, setEmployees] = useState([])
+  const [allEmployees, setAllEmployees] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [filledBarcodes, setFilledBarcodes] = useState({ approved: [], pending: [] })
 
   const [startDate, setStartDate] = useState(null)
   const [endDate, setEndDate] = useState(null)
-  const [status, setStatus] = useState("")
-
   const [searchInput, setSearchInput] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("not_filled")
 
   const [visualAcuity, setVisualAcuity] = useState({
     distance: { right: "", left: "" },
@@ -298,549 +228,183 @@ const Ophthalmology = () => {
   const [patientComplaints, setPatientComplaints] = useState("")
   const [remarks, setRemarks] = useState("")
 
-  const [allEmployees, setAllEmployees] = useState([])
-  const [filledBarcodes, setFilledBarcodes] = useState([]) // store as array; convert to Set via useMemo
-  const [statusFilter, setStatusFilter] = useState("pending") // "pending" | "approved"
-
   useEffect(() => {
-  const fetchEmployees = async () => {
-    try {
-      const [empRes, ophRes] = await Promise.all([
-        axios.get(`${Labbaseurl}get_all_employees/`),
-        axios.get(`${Labbaseurl}get_all_ophthalmology/`),
-      ]);
-
-      const allEmployeesLocal = empRes.data || [];
-      const approvedSet = new Set((ophRes.data.approved || []).map((item) => item.barcode));
-      const pendingSet = new Set((ophRes.data.pending || []).map((item) => item.barcode));
-
-      const notFilledEmployees = allEmployeesLocal.filter(
-        (emp) => !approvedSet.has(emp.barcode) && !pendingSet.has(emp.barcode)
-      );
-
-      setAllEmployees(allEmployeesLocal);
-      setFilledBarcodes({
-        approved: Array.from(approvedSet),
-        pending: Array.from(pendingSet),
-      });
-
-      setEmployees(notFilledEmployees);
-    } catch (err) {
-      console.error("Error fetching employees:", err);
-      toast.error("Failed to fetch employees. Please try again.");
-    }
-  };
-
-  fetchEmployees();
-}, []);
-
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim().toLowerCase())
-    }, 350)
-    return () => clearTimeout(t)
-  }, [searchInput])
-
-  const filterBySearchAndDate = (list) => {
-    const q = debouncedSearch
-
-    const toMidnight = (d) => {
-      if (!d) return null
-      const dt = new Date(d)
-      dt.setHours(0, 0, 0, 0)
-      return dt
-    }
-
-    const s = toMidnight(startDate)
-    const e = toMidnight(endDate)
-
-    return list.filter((emp) => {
-      const matchesSearch =
-        !q ||
-        (emp.employee_id && String(emp.employee_id).toLowerCase().includes(q)) ||
-        (emp.employee_name && emp.employee_name.toLowerCase().includes(q)) ||
-        (emp.barcode && String(emp.barcode).toLowerCase().includes(q))
-
-      if (!matchesSearch) return false
-
-      if (!startDate && !endDate) return true
-      const created = emp.created_date ? new Date(emp.created_date) : null
-      if (created) created.setHours(0, 0, 0, 0)
-
-      const inRange =
-        (!s && !e) ||
-        (s && !e && created && created.getTime() >= s.getTime()) ||
-        (!s && e && created && created.getTime() <= e.getTime()) ||
-        (s && e && created && created.getTime() >= s.getTime() && created.getTime() <= e.getTime())
-
-      return inRange
-    })
-  }
-
- const filledSets = useMemo(() => ({
-  approved: new Set(filledBarcodes.approved || []),
-  pending: new Set(filledBarcodes.pending || []),
-}), [filledBarcodes]);
-
-const baseList = useMemo(() => {
-  if (statusFilter === "approved") {
-    return allEmployees.filter(emp => filledSets.approved.has(emp.barcode));
-  }
-  if (statusFilter === "pending") {
-    return allEmployees.filter(emp => filledSets.pending.has(emp.barcode));
-  }
-  if (statusFilter === "not_filled") {
-    return employees; // already filtered as not filled
-  }
-  return allEmployees;
-}, [statusFilter, allEmployees, employees, filledSets]);
-
-
-  const filteredList = useMemo(() => filterBySearchAndDate(baseList), [baseList, debouncedSearch, startDate, endDate])
-
- const handleSelectEmployee = async (empId) => {
-  const employee =
-    allEmployees.find((emp) => emp.employee_id === empId) ||
-    employees.find((emp) => emp.employee_id === empId);
-
-  setSelectedEmployee(employee || null);
-
-  if (!employee) return;
-
-  try {
-    // Fetch saved ophthalmology record if exists
-    const res = await axios.get(`${Labbaseurl}get_ophthalmology_by_barcode/${employee.barcode}/`);
-
-    if (res.data) {
-      const data = res.data;
-
-      // Parse the visual_acuity JSON safely
-      let parsedVA = {};
+    const fetchData = async () => {
       try {
-        parsedVA = JSON.parse(data.visual_acuity);
-      } catch {
-        parsedVA = data.visual_acuity || {};
+        const [empRes, ophRes] = await Promise.all([
+          axios.get(`${Labbaseurl}get_all_employees/`),
+          axios.get(`${Labbaseurl}get_all_ophthalmology/`),
+        ])
+        const approved = (ophRes.data.approved || []).map(i => i.barcode)
+        const pending = (ophRes.data.pending || []).map(i => i.barcode)
+
+        setAllEmployees(empRes.data || [])
+        setFilledBarcodes({ approved, pending })
+
+        // Default "Not Filled" list
+        const notFilled = (empRes.data || []).filter(e => !approved.includes(e.barcode) && !pending.includes(e.barcode))
+        setEmployees(notFilled)
+      } catch (err) {
+        toast.error("Error loading data")
       }
-
-      setVisualAcuity({
-        distance: parsedVA.distance || { right: "", left: "" },
-        nearVision: parsedVA.nearVision || { right: "", left: "" },
-        colourVision: parsedVA.colourVision || { right: "", left: "" },
-        ocularmovement: parsedVA.ocularmovement || { right: "", left: "" },
-      });
-
-      setPatientComplaints(data.patient_complaints || "");
-      setRemarks(data.remarks || "");
-      setStatus(data.status || "");
     }
-  } catch (err) {
-    console.log("No saved data found (new form).");
-    // Reset fields if no data
-    setVisualAcuity({
-      distance: { right: "", left: "" },
-      nearVision: { right: "", left: "" },
-      colourVision: { right: "", left: "" },
-      ocularmovement: { right: "", left: "" },
-    });
-    setPatientComplaints("");
-    setRemarks("");
-    setStatus("");
-  }
-};
+    fetchData()
+  }, [])
 
+  const filteredList = useMemo(() => {
+    let list = []
+    const approvedSet = new Set(filledBarcodes.approved)
+    const pendingSet = new Set(filledBarcodes.pending)
 
+    if (statusFilter === "approved") list = allEmployees.filter(e => approvedSet.has(e.barcode))
+    else if (statusFilter === "pending") list = allEmployees.filter(e => pendingSet.has(e.barcode))
+    else list = employees // "not_filled"
 
-  const handleBackToList = () => {
-    setSelectedEmployee(null)
-    setVisualAcuity({
-      distance: { right: "", left: "" },
-      nearVision: { right: "", left: "" },
-      colourVision: { right: "", left: "" },
-      ocularmovement: { right: "", left: "" },
+    return list.filter(emp => {
+      const q = searchInput.toLowerCase()
+      const matchesSearch = !q || emp.employee_name?.toLowerCase().includes(q) || emp.barcode?.toLowerCase().includes(q)
+
+      const created = emp.created_date ? new Date(emp.created_date).setHours(0, 0, 0, 0) : null
+      const s = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null
+      const e = endDate ? new Date(endDate).setHours(0, 0, 0, 0) : null
+      const matchesDate = (!s || (created && created >= s)) && (!e || (created && created <= e))
+
+      return matchesSearch && matchesDate
     })
+  }, [statusFilter, allEmployees, employees, filledBarcodes, searchInput, startDate, endDate])
 
-    setPatientComplaints("")
-    setRemarks("")
-    setStatus("")
+  const handleSelectEmployee = async (emp) => {
+    setSelectedEmployee(emp)
+    try {
+      const res = await axios.get(`${Labbaseurl}get_ophthalmology_by_barcode/${emp.barcode}/`)
+      if (res.data) {
+        const va = typeof res.data.visual_acuity === 'string' ? JSON.parse(res.data.visual_acuity) : res.data.visual_acuity
+        setVisualAcuity(va || visualAcuity)
+        setPatientComplaints(res.data.patient_complaints || "")
+        setRemarks(res.data.remarks || "")
+      }
+    } catch {
+      // Reset if new
+      setVisualAcuity({ distance: { right: "", left: "" }, nearVision: { right: "", left: "" }, colourVision: { right: "", left: "" }, ocularmovement: { right: "", left: "" } })
+      setPatientComplaints(""); setRemarks("")
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedEmployee) return
-
-    const payload = {
-      barcode: selectedEmployee.barcode,
-      visual_acuity: {
-        distance: visualAcuity.distance,
-        nearVision: visualAcuity.nearVision,
-        colourVision: visualAcuity.colourVision,
-        ocularmovement: visualAcuity.ocularmovement,
-      },
-      patient_complaints: patientComplaints,
-      remarks,
-    }
-
+    const payload = { barcode: selectedEmployee.barcode, visual_acuity: visualAcuity, patient_complaints: patientComplaints, remarks }
     try {
       await axios.post(`${Labbaseurl}save_ophthalmology/`, payload)
-      toast.success("Ophthalmology data saved successfully!")
-
-      // 🆕 Remove employee from list immediately
-      setEmployees((prev) => prev.filter((emp) => emp.barcode !== selectedEmployee.barcode))
-
-      handleBackToList()
-    } catch (error) {
-      console.error("Error saving:", error)
-      toast.error("Ophthalmology with this employee already exists.")
-    }
+      toast.success("Saved Successfully")
+      setEmployees(prev => prev.filter(e => e.barcode !== selectedEmployee.barcode))
+      setSelectedEmployee(null)
+    } catch (err) { toast.error("Error saving data") }
   }
 
   return (
     <Container>
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
+      <ToastContainer theme="colored" />
       <Card>
         {!selectedEmployee ? (
           <>
-            <Title>Employee Management System</Title>
-
+            <Title>Ophthalmology Management</Title>
             <FiltersBar>
-              <SearchWrap>
-                <span style={{ fontWeight: 700, color: "#4a5568" }}>Search</span>
-                <input
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Barcode, Name, Employee ID"
-                />
-              </SearchWrap>
-
-              <DatePickerWrap>
-                <span style={{ fontWeight: 700, color: "#4a5568" }}>From</span>
-                <DatePicker
-                  selected={startDate}
-                  onChange={(date) => setStartDate(date)}
-                  selectsStart
-                  startDate={startDate}
-                  endDate={endDate}
-                  maxDate={endDate || null}
-                  dateFormat="dd/MM/yyyy"
-                  isClearable
-                  placeholderText="Start date"
-                  popperPlacement="bottom-start"
-                />
-              </DatePickerWrap>
-
-              <DatePickerWrap>
-                <span style={{ fontWeight: 700, color: "#4a5568" }}>To</span>
-                <DatePicker
-                  selected={endDate}
-                  onChange={(date) => setEndDate(date)}
-                  selectsEnd
-                  startDate={startDate}
-                  endDate={endDate}
-                  minDate={startDate || null}
-                  dateFormat="dd/MM/yyyy"
-                  isClearable
-                  placeholderText="End date"
-                  popperPlacement="bottom-start"
-                />
-              </DatePickerWrap>
-
-              {/* NEW: Status filter combobox (pending/approved) */}
-              <StatusFilterWrap>
-  <span style={{ fontWeight: 700, color: "#4a5568" }}>Status</span>
-  <select
-    value={statusFilter}
-    onChange={(e) => setStatusFilter(e.target.value)}
-    aria-label="Filter by status"
-  >
-    <option value="not_filled">Not Filled</option>
-    <option value="pending">Pending</option>
-    <option value="approved">Approved</option>
-  </select>
-</StatusFilterWrap>
-
-
-              {(searchInput || startDate || endDate) && (
-                <ClearBtn
-                  onClick={() => {
-                    setSearchInput("")
-                    setDebouncedSearch("")
-                    setStartDate(null)
-                    setEndDate(null)
-                  }}
-                >
-                  Clear Filters
-                </ClearBtn>
-              )}
+              <FilterItem>
+                <span>Search</span>
+                <input placeholder="Name / Barcode" value={searchInput} onChange={e => setSearchInput(e.target.value)} />
+              </FilterItem>
+              <FilterItem>
+                <span>Status</span>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="not_filled">Not Filled</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </FilterItem>
+              <FilterItem>
+                <span>From</span>
+                <DatePicker selected={startDate} onChange={d => setStartDate(d)} dateFormat="dd/MM/yyyy" placeholderText="Start" />
+              </FilterItem>
+              <FilterItem>
+                <span>To</span>
+                <DatePicker selected={endDate} onChange={d => setEndDate(d)} dateFormat="dd/MM/yyyy" placeholderText="End" />
+              </FilterItem>
             </FiltersBar>
 
-            {filteredList.length === 0 ? (
-              <NoDataMessage>No employees match the current filters.</NoDataMessage>
-            ) : (
-              <StyledTable>
-                <TableHeader>
-                  <tr>
-                    <th>Employee ID</th>
-                    <th>Employee Name</th>
-                    <th>Age</th>
-                    <th>Gender</th>
-                    <th>Barcode</th>
-                    <th>Action</th>
+            <StyledTable>
+              <thead>
+                <tr>
+                  <Th>ID</Th><Th>Name</Th><Th>Age/Sex</Th><Th>Barcode</Th><Th>Action</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredList.map(emp => (
+                  <tr key={emp.barcode}>
+                    <Td data-label="ID">{emp.employee_id}</Td>
+                    <Td data-label="Name"><b>{emp.employee_name}</b></Td>
+                    <Td data-label="Details">{emp.age}Y / {emp.gender}</Td>
+                    <Td data-label="Barcode">{emp.barcode}</Td>
+                    <Td>
+                      <ActionButton onClick={() => handleSelectEmployee(emp)}>Open Form</ActionButton>
+                    </Td>
                   </tr>
-                </TableHeader>
-                <TableBody>
-                  {filteredList.map((emp) => (
-                    <tr key={emp.employee_id}>
-                      <td>{emp.employee_id}</td>
-                      <td>{emp.employee_name}</td>
-                      <td>{emp.age}</td>
-                      <td>{emp.gender}</td>
-                      <td>{emp.barcode}</td>
-                      <td>
-                    <ActionButton onClick={() => handleSelectEmployee(emp.employee_id)}>
-                      Fill Ophthalmology Form
-                    </ActionButton>
-
-                  </td>
-
-                    </tr>
-                  ))}
-                </TableBody>
-              </StyledTable>
-            )}
+                ))}
+              </tbody>
+            </StyledTable>
           </>
         ) : (
           <div>
-            <BackButton onClick={handleBackToList}>← Back to Employee List</BackButton>
+            <ActionButton onClick={() => setSelectedEmployee(null)} style={{ background: '#718096', marginBottom: '1rem' }}>
+              ← Back to List
+            </ActionButton>
 
-            <EmployeeInfoCard>
-              <EmployeeInfoTitle>Patient Information</EmployeeInfoTitle>
+            <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#112D4E' }}>Patient: {selectedEmployee.employee_name}</h4>
               <EmployeeInfoGrid>
-                <EmployeeInfoItem>
-                  <div className="label">Employee ID</div>
-                  <div className="value">{selectedEmployee.employee_id}</div>
-                </EmployeeInfoItem>
-                <EmployeeInfoItem>
-                  <div className="label">Name</div>
-                  <div className="value">{selectedEmployee.employee_name}</div>
-                </EmployeeInfoItem>
-                <EmployeeInfoItem>
-                  <div className="label">Age</div>
-                  <div className="value">{selectedEmployee.age} years</div>
-                </EmployeeInfoItem>
-                <EmployeeInfoItem>
-                  <div className="label">Gender</div>
-                  <div className="value">{selectedEmployee.gender}</div>
-                </EmployeeInfoItem>
-                <EmployeeInfoItem>
-                  <div className="label">Barcode</div>
-                  <div className="value">{selectedEmployee.barcode}</div>
-                </EmployeeInfoItem>
-               <EmployeeInfoItem>
-            <div className="label">Status</div>
-            <div className="value">
-              {filledSets.approved.has(selectedEmployee.barcode)
-                ? "Approved"
-                : filledSets.pending.has(selectedEmployee.barcode)
-                ? "Pending"
-                : "Not Filled"}
-            </div>
-          </EmployeeInfoItem>
-
-
+                <div><small>ID:</small> {selectedEmployee.employee_id}</div>
+                <div><small>Age:</small> {selectedEmployee.age}</div>
+                <div><small>Gender:</small> {selectedEmployee.gender}</div>
+                <div><small>Barcode:</small> {selectedEmployee.barcode}</div>
               </EmployeeInfoGrid>
-            </EmployeeInfoCard>
+            </div>
 
-            <Title>Ophthalmology Examination Form</Title>
             <form onSubmit={handleSubmit}>
-              <FormSection>
-                <SectionTitle>Visual Acuity Assessment</SectionTitle>
+              <h3 style={{ borderLeft: '4px solid #3F72AF', paddingLeft: '10px', marginBottom: '1.5rem' }}>Visual Examination</h3>
 
-                {/* ===== Distance ===== */}
-                <FormTable>
-                  <FormTableHeader>
-                    <tr>
-                      <th>Distance</th>
-                      <th>Right Eye</th>
-                      <th>Left Eye</th>
-                    </tr>
-                  </FormTableHeader>
-                  <FormTableBody>
-                    <tr>
-                      <td>Distance</td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.distance.right}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              distance: { ...visualAcuity.distance, right: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.distance.left}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              distance: { ...visualAcuity.distance, left: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  </FormTableBody>
-                </FormTable>
-
-                {/* ===== Near Vision ===== */}
-                <FormTable>
-                  <FormTableHeader>
-                    <tr>
-                      <th>Near Vision</th>
-                      <th>Right Eye</th>
-                      <th>Left Eye</th>
-                    </tr>
-                  </FormTableHeader>
-                  <FormTableBody>
-                    <tr>
-                      <td>Near Vision</td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.nearVision.right}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              nearVision: { ...visualAcuity.nearVision, right: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.nearVision.left}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              nearVision: { ...visualAcuity.nearVision, left: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  </FormTableBody>
-                </FormTable>
-
-                {/* ===== Colour Vision ===== */}
-                <FormTable>
-                  <FormTableHeader>
-                    <tr>
-                      <th>Colour Vision</th>
-                      <th>Right Eye</th>
-                      <th>Left Eye</th>
-                    </tr>
-                  </FormTableHeader>
-                  <FormTableBody>
-                    <tr>
-                      <td>Colour Vision</td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.colourVision.right}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              colourVision: { ...visualAcuity.colourVision, right: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.colourVision.left}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              colourVision: { ...visualAcuity.colourVision, left: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  </FormTableBody>
-                </FormTable>
-
-                {/* ===== ocular movement ===== */}
-                <FormTable>
-                  <FormTableHeader>
-                    <tr>
-                      <th>ocular movement</th>
-                      <th>Right Eye</th>
-                      <th>Left Eye</th>
-                    </tr>
-                  </FormTableHeader>
-                  <FormTableBody>
-                    <tr>
-                      <td>ocular movement</td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.ocularmovement.right}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              ocularmovement: { ...visualAcuity.ocularmovement, right: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <StyledInput
-                          value={visualAcuity.ocularmovement.left}
-                          onChange={(e) =>
-                            setVisualAcuity({
-                              ...visualAcuity,
-                              ocularmovement: { ...visualAcuity.ocularmovement, left: e.target.value },
-                            })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  </FormTableBody>
-                </FormTable>
-              </FormSection>
+              {/* Distance & Near Vision Inputs */}
+              {[
+                { label: "Distance", key: "distance" },
+                { label: "Near Vision", key: "nearVision" },
+                { label: "Colour Vision", key: "colourVision" },
+                { label: "Ocular Movement", key: "ocularmovement" }
+              ].map(item => (
+                <FormResponsiveTable key={item.key}>
+                  <div className="field-title">{item.label}</div>
+                  <StyledInput
+                    placeholder="Right Eye"
+                    value={visualAcuity[item.key].right}
+                    onChange={e => setVisualAcuity({ ...visualAcuity, [item.key]: { ...visualAcuity[item.key], right: e.target.value } })}
+                  />
+                  <StyledInput
+                    placeholder="Left Eye"
+                    value={visualAcuity[item.key].left}
+                    onChange={e => setVisualAcuity({ ...visualAcuity, [item.key]: { ...visualAcuity[item.key], left: e.target.value } })}
+                  />
+                </FormResponsiveTable>
+              ))}
 
               <TwoColumnGrid>
-                <TextareaColumn>
-                  <SectionTitle>Patient Complaints</SectionTitle>
-                  <StyledTextarea
-                    value={patientComplaints}
-                    onChange={(e) => setPatientComplaints(e.target.value)}
-                    placeholder="Enter patient complaints and symptoms..."
-                  />
-                </TextareaColumn>
-
-                <TextareaColumn>
-                  <SectionTitle>Clinical Remarks</SectionTitle>
-                  <StyledTextarea
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Enter any additional observations, recommendations, or clinical notes..."
-                  />
-                </TextareaColumn>
+                <div>
+                  <h4 style={{ color: '#4a5568' }}>Complaints</h4>
+                  <StyledTextarea value={patientComplaints} onChange={e => setPatientComplaints(e.target.value)} placeholder="Symptoms..." />
+                </div>
+                <div>
+                  <h4 style={{ color: '#4a5568' }}>Remarks</h4>
+                  <StyledTextarea value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Clinical observations..." />
+                </div>
               </TwoColumnGrid>
 
-              <SubmitButton type="submit">Save Examination</SubmitButton>
+              <SubmitButton type="submit">Save Examination Results</SubmitButton>
             </form>
           </div>
         )}

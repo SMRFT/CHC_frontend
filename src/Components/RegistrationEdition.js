@@ -34,7 +34,7 @@ const ModalContainer = styled.div`
   }
 `;
 const ModalHeader = styled.div`
-  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 1.5rem;
   border-radius: 12px 12px 0 0;
@@ -115,7 +115,7 @@ const Label = styled.label`
   font-size: 0.875rem;
 `;
 const PrimaryButton = styled.button`
-  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;

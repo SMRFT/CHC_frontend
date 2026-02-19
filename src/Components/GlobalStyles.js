@@ -1,16 +1,17 @@
 export const theme = {
   colors: {
+    // User's new color palette
     primary: {
-      main: "#2563eb",
-      light: "#60a5fa",
-      dark: "#1d4ed8",
-      gradient: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+      main: "#3F72AF",      // Medium blue - main brand color
+      light: "#5A8DD4",     // Lighter version of primary
+      dark: "#112D4E",      // Dark navy - for emphasis
+      gradient: "linear-gradient(135deg, #3F72AF 0%, #112D4E 100%)",
     },
     secondary: {
-      main: "#7c3aed",
-      light: "#a78bfa",
-      dark: "#5b21b6",
-      gradient: "linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)",
+      main: "#DBE2EF",      // Light blue-gray
+      light: "#F9F7F7",     // Very light gray/off-white
+      dark: "#A4B8D3",      // Darker version of secondary
+      gradient: "linear-gradient(135deg, #DBE2EF 0%, #A4B8D3 100%)",
     },
     success: {
       main: "#059669",
@@ -31,26 +32,32 @@ export const theme = {
       gradient: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
     },
     info: {
-      main: "#0891b2",
-      light: "#22d3ee",
-      dark: "#0e7490",
-      gradient: "linear-gradient(135deg, #0891b2 0%, #0e7490 100%)",
+      main: "#3F72AF",      // Using primary blue for info
+      light: "#5A8DD4",
+      dark: "#2A5487",
+      gradient: "linear-gradient(135deg, #3F72AF 0%, #2A5487 100%)",
     },
     neutral: {
-      50: "#f9fafb",
+      50: "#F9F7F7",        // Lightest from user palette
       100: "#f3f4f6",
-      200: "#e5e7eb",
+      200: "#DBE2EF",       // Light blue-gray from user palette
       300: "#d1d5db",
       400: "#9ca3af",
       500: "#6b7280",
       600: "#4b5563",
       700: "#374151",
       800: "#1f2937",
-      900: "#111827",
+      900: "#112D4E",       // Darkest from user palette
     },
     background: {
-      main: "#f8fafc",
+      main: "#F9F7F7",      // Very light gray from user palette
       paper: "#ffffff",
+      secondary: "#DBE2EF", // Light blue-gray
+    },
+    text: {
+      primary: "#112D4E",   // Dark navy for primary text
+      secondary: "#3F72AF", // Medium blue for secondary text
+      light: "#6b7280",     // Gray for lighter text
     },
   },
   typography: {
@@ -118,7 +125,7 @@ export const GlobalStyle = `
   body {
     font-family: ${theme.typography.fontFamily.primary};
     background-color: ${theme.colors.background.main};
-    color: ${theme.colors.neutral[800]};
+    color: ${theme.colors.text.primary};
     line-height: ${theme.typography.lineHeight.normal};
   }
 

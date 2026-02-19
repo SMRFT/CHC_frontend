@@ -66,8 +66,17 @@ const Global = createGlobalStyle`
 /* ============ Styled Components ============ */
 const DashboardContainer = styled.div`
   padding: 28px;
-  margin-left: 60px;
+  margin-left: 260px; /* Match sidebar desktop width */
   min-height: 100vh;
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 1rem;
+  }
 `;
 
 const Header = styled.div`
@@ -233,15 +242,15 @@ const StatusBadge = styled.span`
   color: #fff;
   background: ${({ status, theme }) =>
     status === "Normal" ? theme.colors.success :
-    status === "Risk" ? theme.colors.warning :
-    theme.colors.danger };
+      status === "Risk" ? theme.colors.warning :
+        theme.colors.danger};
 `;
 
 /* ============ Utilities ============ */
 const calculateBMI = (weight, height) => {
   if (!weight || !height) return 0;
   const h = Number(height) / 100;
-  return Number((Number(weight) / (h*h)).toFixed(2));
+  return Number((Number(weight) / (h * h)).toFixed(2));
 };
 
 const getBMIStatus = (bmi) => {
@@ -253,7 +262,7 @@ const getBMIStatus = (bmi) => {
 
 const getBloodPressureStatus = (bp) => {
   if (!bp) return "Unknown";
-  const [s,d] = String(bp).split("/").map(v => parseInt(v,10));
+  const [s, d] = String(bp).split("/").map(v => parseInt(v, 10));
   if (s < 120 && d < 80) return "Normal";
   if (s < 140 && d < 90) return "Risk";
   return "High Risk";
@@ -281,7 +290,7 @@ const categorizeAudiometry = (notes) => {
 const categorizePFT = (notes) => {
   if (!notes) return "Unknown";
   const lowerNotes = notes.toLowerCase();
-  
+
   if (lowerNotes.includes("normal study") || lowerNotes.includes("normal")) return "Normal Study";
   if (lowerNotes.includes("severe obstructive") || lowerNotes.includes("very severe")) return "Severe Obstructive";
   if (lowerNotes.includes("moderate obstructive")) return "Moderate Obstructive";
@@ -289,7 +298,7 @@ const categorizePFT = (notes) => {
   if (lowerNotes.includes("obstructive")) return "Obstructive";
   if (lowerNotes.includes("restrictive")) return "Restrictive";
   if (lowerNotes.includes("mixed")) return "Mixed";
-  
+
   return "Other";
 };
 
@@ -297,10 +306,10 @@ const categorizePFT = (notes) => {
 const categorizeECG = (notes) => {
   if (!notes) return "Unknown";
   const lowerNotes = notes.toLowerCase();
-  
-  if (lowerNotes.includes("normal study") || 
-      lowerNotes.includes("normal ecg") || 
-      (lowerNotes.includes("normal") && !lowerNotes.includes("abnormal"))) {
+
+  if (lowerNotes.includes("normal study") ||
+    lowerNotes.includes("normal ecg") ||
+    (lowerNotes.includes("normal") && !lowerNotes.includes("abnormal"))) {
     return "Normal Study";
   }
   return "Abnormal";
@@ -310,10 +319,10 @@ const categorizeECG = (notes) => {
 const categorizeXray = (notes) => {
   if (!notes) return "Unknown";
   const lowerNotes = notes.toLowerCase();
-  
-  if (lowerNotes.includes("no significant finding") || 
-      lowerNotes.includes("normal study") ||
-      lowerNotes.includes("normal")) {
+
+  if (lowerNotes.includes("no significant finding") ||
+    lowerNotes.includes("normal study") ||
+    lowerNotes.includes("normal")) {
     return "Normal Study";
   }
   return "Findings Noted";
@@ -354,6 +363,7 @@ const exportToCSV = (data, filename = "health-dashboard-export.csv") => {
   // Define headers
   const headers = [
     "Employee ID",
+    "Barcode",
     "Name",
     "Age",
     "Gender",
@@ -384,16 +394,17 @@ const exportToCSV = (data, filename = "health-dashboard-export.csv") => {
     ...data.map(emp => {
       const overall =
         emp.bpStatus === "Normal" && emp.bmiStatus === "Normal" ? "Normal" :
-        (emp.bpStatus === "High Risk" || emp.bmiStatus === "Obese") ? "High Risk" : "Risk";
-      
+          (emp.bpStatus === "High Risk" || emp.bmiStatus === "Obese") ? "High Risk" : "Risk";
+
       // Escape quotes in text fields
       const escapeCSV = (text) => {
         if (!text) return "";
         return String(text).replace(/"/g, '""');
       };
-      
+
       return [
         emp.employee_id || "",
+        emp.barcode || "",
         `"${escapeCSV(emp.employee_name || "N/A")}"`,
         emp.age || "",
         emp.gender || "",
@@ -439,14 +450,14 @@ const exportToCSV = (data, filename = "health-dashboard-export.csv") => {
 const HealthDashboard = () => {
   const [themeName, setThemeName] = useState("light");
   const theme = themeName === "light" ? lightTheme : darkTheme;
-  
+
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
-  
+
   const [employees, setEmployees] = useState([]);
   const [investigations, setInvestigations] = useState([]);
   const [billings, setBillings] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [selectedGender, setSelectedGender] = useState("All");
   const [selectedAgeGroup, setSelectedAgeGroup] = useState("All");
@@ -475,7 +486,7 @@ const HealthDashboard = () => {
     const emp = employees.find(e => e.employee_id === inv.employee_id);
     const vitals = typeof inv.vitals === "string" ? JSON.parse(inv.vitals) : inv.vitals;
     const bmi = calculateBMI(parseFloat(vitals?.weight_kg), parseFloat(vitals?.height_cm));
-    
+
     return {
       ...emp,
       ...inv,
@@ -499,14 +510,17 @@ const HealthDashboard = () => {
   });
 
   const total = filteredData.length || 1;
-  
+  const totalEmployees = employees.length;
   // Existing metrics
   const normalCount = filteredData.filter(d => d.bmiStatus === "Normal" && d.bpStatus === "Normal").length;
   const riskCount = filteredData.filter(d => d.bpStatus === "Risk" || d.bmiStatus === "Overweight").length;
+  const totalHealthCount = normalCount + riskCount;
+  const totalPct = filteredData.length > 0 ? ((totalHealthCount / filteredData.length) * 100).toFixed(1) : 0;
+
   const highRiskCount = filteredData.filter(d => d.bpStatus === "High Risk" || d.bmiStatus === "Obese").length;
   const normalPct = ((normalCount / total) * 100).toFixed(1);
-  const riskPct = ((riskCount / total) * 100).toFixed(1);
-  const highRiskPct = ((highRiskCount / total) * 100).toFixed(1);
+  const riskPct = ((totalHealthCount / totalEmployees) * 100).toFixed(1);
+  const highRiskPct = ((highRiskCount / totalEmployees) * 100).toFixed(1);
   const avgBMI = (filteredData.reduce((s, d) => s + (d.bmi || 0), 0) / total).toFixed(2);
 
   // Audiometry metrics
@@ -515,7 +529,7 @@ const HealthDashboard = () => {
 
   // PFT metrics
   const normalPFTCount = filteredData.filter(d => d.pftStatus === "Normal Study").length;
-  const obstructivePFTCount = filteredData.filter(d => 
+  const obstructivePFTCount = filteredData.filter(d =>
     d.pftStatus.includes("Obstructive") && d.pftStatus !== "Normal Study"
   ).length;
 
@@ -649,24 +663,24 @@ const HealthDashboard = () => {
         <MetricsGrid>
           <MetricCard>
             <MetricTitle>Total Employees</MetricTitle>
-            <MetricValue color={theme.colors.primary}>{filteredData.length}</MetricValue>
+            <MetricValue color={theme.colors.primary}>{employees.length}</MetricValue>
             <MetricSubtext>Active health records</MetricSubtext>
           </MetricCard>
-          <MetricCard>
+          {/* <MetricCard>
             <MetricTitle>Normal Health</MetricTitle>
             <MetricValue color={theme.colors.success}>{normalPct}%</MetricValue>
             <MetricSubtext>{normalCount} employees</MetricSubtext>
-          </MetricCard>
+          </MetricCard> */}
           <MetricCard>
-            <MetricTitle>At Risk</MetricTitle>
-            <MetricValue color={theme.colors.warning}>{riskPct}%</MetricValue>
-            <MetricSubtext>{riskCount} employees</MetricSubtext>
+            <MetricTitle>Normal Health</MetricTitle>
+            <MetricValue color={theme.colors.success}>{riskPct}%</MetricValue>
+            <MetricSubtext>{totalHealthCount} employees</MetricSubtext>
           </MetricCard>
-          <MetricCard>
-            <MetricTitle>High Risk</MetricTitle>
-            <MetricValue color={theme.colors.danger}>{highRiskPct}%</MetricValue>
+          {/* <MetricCard>
+            <MetricTitle>AT Risk</MetricTitle>
+            <MetricValue color={theme.colors.warning}>{highRiskPct}%</MetricValue>
             <MetricSubtext>{highRiskCount} employees</MetricSubtext>
-          </MetricCard>
+          </MetricCard> */}
           <MetricCard>
             <MetricTitle>Average BMI</MetricTitle>
             <MetricValue color={theme.colors.accent}>{avgBMI}</MetricValue>
@@ -709,7 +723,7 @@ const HealthDashboard = () => {
                 <XAxis dataKey="name" stroke={theme.colors.subtext} />
                 <YAxis stroke={theme.colors.subtext} />
                 <Tooltip content={<GlassTooltip />} />
-                <Bar dataKey="count" fill="url(#barAge)" radius={[8,8,0,0]} />
+                <Bar dataKey="count" fill="url(#barAge)" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -719,8 +733,8 @@ const HealthDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={genderDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
-                     labelLine={false}
-                     label={({ name, percent }) => `${name}: ${(percent*100).toFixed(0)}%`}>
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
                   {genderDistribution.map((_, i) => (
                     <Cell key={i} fill={[theme.colors.primary, theme.colors.secondary][i % 2]} />
                   ))}
@@ -744,7 +758,7 @@ const HealthDashboard = () => {
                 <XAxis type="number" stroke={theme.colors.subtext} />
                 <YAxis dataKey="name" type="category" width={160} stroke={theme.colors.subtext} />
                 <Tooltip content={<GlassTooltip />} />
-                <Bar dataKey="count" fill="url(#barDept)" radius={[8,8,8,8]} />
+                <Bar dataKey="count" fill="url(#barDept)" radius={[8, 8, 8, 8]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -754,8 +768,8 @@ const HealthDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={bmiDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={104} innerRadius={60}
-                     labelLine={false}
-                     label={({ name, percent }) => `${name}: ${(percent*100).toFixed(0)}%`}>
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
                   {bmiDistribution.map((_, i) => (
                     <Cell key={i} fill={[theme.colors.secondary, theme.colors.success, theme.colors.warning, theme.colors.danger][i % 4]} />
                   ))}
@@ -773,7 +787,7 @@ const HealthDashboard = () => {
                 <XAxis dataKey="name" stroke={theme.colors.subtext} />
                 <YAxis stroke={theme.colors.subtext} />
                 <Tooltip content={<GlassTooltip />} />
-                <Bar dataKey="value" fill={theme.colors.accent} radius={[8,8,0,0]} />
+                <Bar dataKey="value" fill={theme.colors.accent} radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -783,12 +797,12 @@ const HealthDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={audiometryDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
-                     labelLine={false}
-                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
                   {audiometryDistribution.map((entry, i) => (
                     <Cell key={i} fill={
                       entry.name === "Normal Study" ? theme.colors.success :
-                      theme.colors.danger
+                        theme.colors.danger
                     } />
                   ))}
                 </Pie>
@@ -811,7 +825,7 @@ const HealthDashboard = () => {
                 <XAxis dataKey="name" stroke={theme.colors.subtext} angle={-45} textAnchor="end" height={100} />
                 <YAxis stroke={theme.colors.subtext} />
                 <Tooltip content={<GlassTooltip />} />
-                <Bar dataKey="value" fill="url(#barPFT)" radius={[8,8,0,0]} />
+                <Bar dataKey="value" fill="url(#barPFT)" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -821,12 +835,12 @@ const HealthDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={ecgDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
-                     labelLine={false}
-                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
                   {ecgDistribution.map((entry, i) => (
                     <Cell key={i} fill={
                       entry.name === "Normal Study" ? theme.colors.success :
-                      theme.colors.danger
+                        theme.colors.danger
                     } />
                   ))}
                 </Pie>
@@ -840,12 +854,12 @@ const HealthDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={xrayDistribution} dataKey="value" cx="50%" cy="50%" outerRadius={100}
-                     labelLine={false}
-                     label={({ name, value, percent }) => `${name}: ${value} (${(percent*100).toFixed(0)}%)`}>
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}>
                   {xrayDistribution.map((entry, i) => (
                     <Cell key={i} fill={
                       entry.name === "Normal Study" ? theme.colors.success :
-                      theme.colors.warning
+                        theme.colors.warning
                     } />
                   ))}
                 </Pie>
@@ -860,7 +874,7 @@ const HealthDashboard = () => {
               <RadarChart data={healthIndicators}>
                 <PolarGrid stroke={theme.colors.grid} />
                 <PolarAngleAxis dataKey="indicator" stroke={theme.colors.subtext} />
-                <PolarRadiusAxis angle={90} domain={[0,100]} stroke={theme.colors.subtext} />
+                <PolarRadiusAxis angle={90} domain={[0, 100]} stroke={theme.colors.subtext} />
                 <Radar name="Health %" dataKey="value" stroke={theme.colors.secondary} fill={theme.colors.secondary} fillOpacity={0.6} />
                 <Tooltip content={<GlassTooltip />} />
               </RadarChart>
@@ -882,7 +896,7 @@ const HealthDashboard = () => {
               {filteredData.slice(0, 20).map((emp, idx) => {
                 const overall =
                   emp.bpStatus === "Normal" && emp.bmiStatus === "Normal" ? "Normal" :
-                  (emp.bpStatus === "High Risk" || emp.bmiStatus === "Obese") ? "High Risk" : "Risk";
+                    (emp.bpStatus === "High Risk" || emp.bmiStatus === "Obese") ? "High Risk" : "Risk";
                 return (
                   <tr key={idx}>
                     <td>{emp.employee_id}</td>

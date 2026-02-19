@@ -21,7 +21,7 @@ import CHCReport from "./Components/CHCReport";
 
 // Content now accepts a flag to control the left margin
 const Content = styled.div`
-  margin-left: ${({ hasSidebar }) => (hasSidebar ? "240px" : "0")};
+  // margin-left: ${({ hasSidebar }) => (hasSidebar ? "240px" : "0")};
   padding: 20px;
   transition: margin-left 0.25s ease;
 `;

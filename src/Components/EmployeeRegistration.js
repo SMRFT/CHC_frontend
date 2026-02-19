@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FaBarcode } from "react-icons/fa";
-import Quagga from "quagga";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -9,28 +9,47 @@ import "react-toastify/dist/ReactToastify.css";
 // Styled components (keeping the same styles from the original)
 const StyledContainer = styled.div`
   min-height: 100vh;
-  background: #f8fafc;
-  margin-left: 50px; /* same as sidebar width */
+  background: #F9F7F7; /* New color scheme - light background */
+  margin-left: 260px; /* Match sidebar desktop width */
   padding: 2rem;
   font-family: 'Inter', sans-serif;
-`
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 1rem;
+  }
+`;
 
 const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   border-radius: 1rem;
   margin-bottom: 2rem;
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   text-align: center;
-`
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.75rem;
+  }
+`;
 
 const Title = styled.h1`
   font-size: 2rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
   color: white;
-`
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
+`;
 
 const Card = styled.div`
   background: #f9fafb;
@@ -85,6 +104,11 @@ const FormContainer = styled.form`
   margin: 0 auto;
   padding: 2rem;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
 `;
 
 const FormRow = styled.div`
@@ -130,6 +154,12 @@ const ScannerContainer = styled.div`
   align-items: center;
   gap: 1rem;
   margin-bottom: 2rem;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
 `;
 
 const ScanButton = styled.button`
@@ -142,12 +172,29 @@ const ScanButton = styled.button`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+
+  @media (max-width: 600px) {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+  }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+  margin-top: 1rem;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    gap: 0.75rem;
+    
+    button {
+      width: 100%;
+      padding: 0.75rem;
+    }
+  }
 `;
 
 const SubmitButton = styled.button`
@@ -183,9 +230,15 @@ const StyledModal = styled.div`
 
 const ScannerBox = styled.div`
   width: 500px;
-  height: 300px;
+  height: auto;
+  min-height: 300px;
   background: black;
   border-radius: 8px;
+  max-width: 95%;
+
+  @media (max-width: 600px) {
+    min-height: 250px;
+  }
 `;
 
 const AlertBox = styled.div`
@@ -196,57 +249,35 @@ const AlertBox = styled.div`
   border-radius: 6px;
 `;
 
-// 🔹 Scanner Hook
-const useQuaggaScanner = (onDetected) => {
-  const scannerRef = useRef(null);
-
-  const initScanner = () => {
-    Quagga.init(
-      {
-        inputStream: {
-          type: "LiveStream",
-          target: scannerRef.current,
-          constraints: { width: 640, height: 480, facingMode: "environment" },
-        },
-        locator: { patchSize: "medium", halfSample: true },
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "code_39_vin_reader",
-            "codabar_reader",
-            "upc_reader",
-            "upc_e_reader",
-          ],
-        },
-        locate: true,
-      },
-      (err) => {
-        if (err) console.error(err);
-        else Quagga.start();
-      }
-    );
-    Quagga.onDetected(onDetected);
-  };
-
-  const stopScanner = () => {
-    Quagga.stop();
-    Quagga.offDetected(onDetected);
-  };
-
-  return { scannerRef, initScanner, stopScanner };
-};
-
 // ---- Scanner Component ----
 const Scanner = ({ onDetected }) => {
-  const { scannerRef, initScanner, stopScanner } = useQuaggaScanner(onDetected);
   useEffect(() => {
-    initScanner();
-    return () => stopScanner();
-  }, []);
-  return <ScannerBox ref={scannerRef} />;
+    // Initialize Html5QrcodeScanner
+    const scanner = new Html5QrcodeScanner(
+      "reader",
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      /* verbose= */ false
+    );
+
+    scanner.render(
+      (decodedText) => {
+        // Match the structure expected by onBarcodeDetected
+        onDetected({ codeResult: { code: decodedText } });
+      },
+      (errorMessage) => {
+        // parse error, ignore it.
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      scanner.clear().catch((error) => {
+        console.error("Failed to clear html5-qrcode scanner. ", error);
+      });
+    };
+  }, [onDetected]);
+
+  return <ScannerBox id="reader" />;
 };
 
 // ---- Main Component ----
@@ -260,7 +291,7 @@ const EmployeeRegistration = () => {
     employee_id: "",
     gender: "Female",
     age: "",
-    company_name: "JS AUTO CAST FOUNDRY INDIA PVT LTD,",
+    company_name: "ACSEN TEX P LTD",
     department: "",
     email: "",
     mobile: "",
@@ -278,27 +309,27 @@ const EmployeeRegistration = () => {
   const [errors, setErrors] = useState({});
 
 
-  
+
   // ✅ Validation function
-const validateForm = () => {
-  const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age"];
-  let newErrors = {};
-  let valid = true;
+  const validateForm = () => {
+    const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age"];
+    let newErrors = {};
+    let valid = true;
 
-  requiredFields.forEach((field) => {
-    if (!formData[field] || formData[field].trim() === "") {
-      newErrors[field] = true;
-      toast.error(`${field.replace("_", " ")} is required`);
-      valid = false;
-    }
-  });
+    requiredFields.forEach((field) => {
+      if (!formData[field] || formData[field].trim() === "") {
+        newErrors[field] = true;
+        toast.error(`${field.replace("_", " ")} is required`);
+        valid = false;
+      }
+    });
 
-  setErrors(newErrors);
-  return valid;
-};
+    setErrors(newErrors);
+    return valid;
+  };
 
 
-    // 🔹 Barcode detected handler
+  // 🔹 Barcode detected handler
   const onBarcodeDetected = (result) => {
     if (holdScan) return;
     setHoldScan(true);
@@ -609,8 +640,8 @@ const validateForm = () => {
                 </h3>
 
                 {/* Investigations Table - Reduced Width */}
-                <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-                  <StyledTable style={{ width: "100%" }}>
+                <div style={{ maxWidth: "600px", margin: "0 auto", overflowX: "auto" }}>
+                  <StyledTable style={{ width: "100%", minWidth: "300px" }}>
                     <thead>
                       <tr>
                         <TableHeader style={{ width: "80px" }}>S.No</TableHeader>
@@ -662,7 +693,7 @@ const validateForm = () => {
             Back
           </BackButton>
           <SubmitButton type="submit">Submit</SubmitButton>
-          
+
 
         </ButtonGroup>
       </FormContainer>
