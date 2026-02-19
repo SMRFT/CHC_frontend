@@ -6,15 +6,23 @@ import styled from "styled-components"
 // Styled components (keeping the same styles from the original)
 const Container = styled.div`
   min-height: 100vh;
-  background: #f8fafc;
-  margin-left: 100px; /* same as sidebar width */
-
+  background: #F9F7F7; /* New color scheme - light background */
+  margin-left: 260px; /* Match sidebar desktop width */
   padding: 2rem;
   font-family: 'Inter', sans-serif;
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 1rem;
+  }
 `
 
 const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   border-radius: 1rem;
@@ -60,8 +68,8 @@ const StatusBadge = styled.span`
     props.status === "Transferred"
       ? "linear-gradient(135deg, #38a169 0%, #2f855a 100%)"
       : props.status === "Collected"
-      ? "linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)"
-      : "linear-gradient(135deg, #718096 0%, #4a5568 100%)"};
+        ? "linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)"
+        : "linear-gradient(135deg, #718096 0%, #4a5568 100%)"};
 `
 
 // Info text showing transfer details
@@ -107,7 +115,7 @@ const SectionTitle = styled.h2`
     content: '';
     width: 4px;
     height: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-radius: 2px;
   }
 `
@@ -157,7 +165,7 @@ const Input = styled.input`
 
 const Button = styled.button`
   padding: 0.75rem 1.5rem;
-  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")};
+  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #3F72AF 0%, #112D4E 100%)")};
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -184,7 +192,7 @@ const Table = styled.table`
 `
 
 const TableHeader = styled.thead`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
 `
 
@@ -269,7 +277,7 @@ const ModalContent = styled.div`
 `
 
 const ModalHeader = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   display: flex;
@@ -468,7 +476,7 @@ const SampleTransfer = () => {
   const [showModal, setShowModal] = useState(false)
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
-    company_id: "CHC001", // Added company_id to filters
+    company_id: "CHC002", // Added company_id to filters
     employee_id: "",
     barcode: "",
   })
@@ -633,73 +641,73 @@ const SampleTransfer = () => {
     }
   }
 
-const saveTestData = async () => {
-  setSaving(true)
-  setError("")
-  setSuccess("")
+  const saveTestData = async () => {
+    setSaving(true)
+    setError("")
+    setSuccess("")
 
-  try {
-    const tests = getValidTests(selectedSample.testdetails)
-    const loggedInUserId = getLoggedInUserId()
+    try {
+      const tests = getValidTests(selectedSample.testdetails)
+      const loggedInUserId = getLoggedInUserId()
 
-    const formattedTestDetails = tests.map((test) => {
-      const testKey = `${selectedSample.employee_id}_${test.test_id}`
-      const currentStatus = testStatuses[testKey] || "Collected"
+      const formattedTestDetails = tests.map((test) => {
+        const testKey = `${selectedSample.employee_id}_${test.test_id}`
+        const currentStatus = testStatuses[testKey] || "Collected"
 
-      return {
-        ...test,
-        samplestatus: currentStatus,
+        return {
+          ...test,
+          samplestatus: currentStatus,
+          lastmodified_by: loggedInUserId,
+          lastmodified_time: new Date().toISOString(),
+        }
+      })
+
+      if (formattedTestDetails.length === 0) {
+        setError("No tests found to transfer.")
+        setSaving(false)
+        return
+      }
+
+      // ✅ Include date in PATCH payload
+      const sampleData = {
+        date: filters.date, // Required for backend
+        company_id: filters.company_id,
+        barcode: selectedSample.barcode,
+        employee_id: selectedSample.employee_id,
+        testdetails: formattedTestDetails,
+        transferred_by: loggedInUserId,
         lastmodified_by: loggedInUserId,
-        lastmodified_time: new Date().toISOString(),
+        lastmodified_date: new Date().toISOString(),
       }
-    })
 
-    if (formattedTestDetails.length === 0) {
-      setError("No tests found to transfer.")
+      const response = await fetch(
+        `${Labbaseurl}samples/?company_id=${filters.company_id}&barcode=${selectedSample.barcode}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(sampleData),
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+
+      setSuccess("Test data transferred successfully!")
+      setTimeout(() => {
+        closeModal()
+        fetchCollectedSamples()
+      }, 1500)
+    } catch (error) {
+      console.error("Error transferring test data:", error)
+      setError(`Failed to transfer test data: ${error.message}`)
+    } finally {
       setSaving(false)
-      return
     }
-
-    // ✅ Include date in PATCH payload
-    const sampleData = {
-      date: filters.date, // Required for backend
-      company_id: filters.company_id,
-      barcode: selectedSample.barcode,
-      employee_id: selectedSample.employee_id,
-      testdetails: formattedTestDetails,
-      transferred_by: loggedInUserId,
-      lastmodified_by: loggedInUserId,
-      lastmodified_date: new Date().toISOString(),
-    }
-
-    const response = await fetch(
-      `${Labbaseurl}samples/?company_id=${filters.company_id}&barcode=${selectedSample.barcode}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(sampleData),
-      }
-    )
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
-    }
-
-    setSuccess("Test data transferred successfully!")
-    setTimeout(() => {
-      closeModal()
-      fetchCollectedSamples()
-    }, 1500)
-  } catch (error) {
-    console.error("Error transferring test data:", error)
-    setError(`Failed to transfer test data: ${error.message}`)
-  } finally {
-    setSaving(false)
   }
-}
 
 
   const getLoggedInUserId = () => {

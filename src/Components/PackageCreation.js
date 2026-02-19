@@ -6,8 +6,17 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 // ===== Enhanced Styled Components =====
 const PageContainer = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   padding: 2rem 0;
+  margin-left: 260px; /* Match sidebar desktop width */
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+  }
 `;
 
 const Container = styled.div`
@@ -301,7 +310,7 @@ const Packagecreation = () => {
   const [selectedAmount, setSelectedAmount] = useState("");
   const [selectedTest, setSelectedTest] = useState("");
 
- const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
+  const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
 
   // Fetch tests
   useEffect(() => {
@@ -342,7 +351,7 @@ const Packagecreation = () => {
         total: (Number(selectedAmount) || 0) * (testObj.L2L_Rate_Card || 0),
       },
     ]);
-    
+
     // Reset selection
     setSelectedTest("");
   };
@@ -408,7 +417,7 @@ const Packagecreation = () => {
         <Header>
           <Title>Create Package</Title>
         </Header>
-        
+
         <Card>
           <form onSubmit={handleSubmit}>
             <FormGroup>

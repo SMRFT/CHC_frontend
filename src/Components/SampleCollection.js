@@ -6,14 +6,23 @@ import styled from "styled-components"
 // Styled components (keeping the same styles from the original)
 const Container = styled.div`
   min-height: 100vh;
-  background: #f8fafc;
-  margin-left: 100px; /* same as sidebar width */
+  background: #F9F7F7; /* New color scheme - light background */
+  margin-left: 260px; /* Match sidebar desktop width */
   padding: 2rem;
   font-family: 'Inter', sans-serif;
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 1rem;
+  }
 `
 
 const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   border-radius: 1rem;
@@ -58,7 +67,7 @@ const SectionTitle = styled.h2`
     content: '';
     width: 4px;
     height: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-radius: 2px;
   }
 `
@@ -108,7 +117,7 @@ const Input = styled.input`
 
 const Button = styled.button`
   padding: 0.75rem 1.5rem;
-  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")};
+  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #3F72AF 0%, #112D4E 100%)")};
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -135,7 +144,7 @@ const Table = styled.table`
 `
 
 const TableHeader = styled.thead`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
 `
 
@@ -220,7 +229,7 @@ const ModalContent = styled.div`
 `
 
 const ModalHeader = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   display: flex;
@@ -419,7 +428,7 @@ const SampleCollection = () => {
   const [showModal, setShowModal] = useState(false)
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
-    company_id: "CHC001", // Added company_id to filters
+    company_id: "CHC002", // Added company_id to filters
     employee_id: "",
     barcode: "",
   })

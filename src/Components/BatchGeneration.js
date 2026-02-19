@@ -14,14 +14,23 @@ import styled from "styled-components"
 // Styled components (from your first document)
 const Container = styled.div`
   min-height: 100vh;
-  background: #f8fafc;
-  margin-left: 150px; /* same as sidebar width */
+  background: #F9F7F7; /* New color scheme - light background */
+  margin-left: 260px; /* Match sidebar desktop width */
   padding: 2rem;
   font-family: 'Inter', sans-serif;
+
+  @media (max-width: 1024px) {
+    margin-left: 240px; /* Match sidebar tablet width */
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    padding: 1rem;
+  }
 `
 
 const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
   padding: 2rem;
   border-radius: 1rem;
@@ -66,7 +75,7 @@ const SectionTitle = styled.h2`
     content: '';
     width: 4px;
     height: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
     border-radius: 2px;
   }
 `
@@ -116,7 +125,7 @@ const Input = styled.input`
 
 const Button = styled.button`
   padding: 0.75rem 1.5rem;
-  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")};
+  background: ${(props) => (props.disabled ? "#cbd5e0" : "linear-gradient(135deg, #3F72AF 0%, #112D4E 100%)")};
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -156,7 +165,7 @@ const Table = styled.table`
 `
 
 const TableHeader = styled.thead`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
   color: white;
 `
 
@@ -491,17 +500,17 @@ const BatchGeneration = () => {
         const jsPDFScript = document.createElement('script')
         jsPDFScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
         document.head.appendChild(jsPDFScript)
-        
+
         await new Promise((resolve, reject) => {
           jsPDFScript.onload = resolve
           jsPDFScript.onerror = reject
         })
-        
+
         // Load autoTable plugin
         const autoTableScript = document.createElement('script')
         autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'
         document.head.appendChild(autoTableScript)
-        
+
         await new Promise((resolve, reject) => {
           autoTableScript.onload = resolve
           autoTableScript.onerror = reject
@@ -513,7 +522,7 @@ const BatchGeneration = () => {
       if (!jsPDF) {
         throw new Error('jsPDF library failed to load')
       }
-      
+
       const doc = new jsPDF()
       const pageWidth = doc.internal.pageSize.width
       const currentDate = new Date()
@@ -592,9 +601,9 @@ const BatchGeneration = () => {
         },
         columnStyles: {
           0: { cellWidth: 15 },
-          1: { cellWidth: 20 }, 
-          2: { cellWidth: 18 }, 
-          3: { cellWidth: 20 }, 
+          1: { cellWidth: 20 },
+          2: { cellWidth: 18 },
+          3: { cellWidth: 20 },
           4: { cellWidth: 25 },
         },
         margin: { left: 20, right: 20 },
