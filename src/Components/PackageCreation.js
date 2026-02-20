@@ -304,11 +304,126 @@ const AmountSection = styled.div`
   }
 `;
 
+// === Modal Styles ===
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+`;
+
+const ModalBox = styled.div`
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #112D4E;
+  margin-bottom: 1.5rem;
+  text-align: center;
+`;
+
+const ModalInput = styled.input`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+  &:focus {
+    outline: none;
+    border-color: #3F72AF;
+  }
+  &:read-only {
+    background: #f3f4f6;
+    color: #6b7280;
+    font-weight: 600;
+  }
+`;
+
+const ModalLabel = styled.label`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  display: block;
+  margin-bottom: 0.3rem;
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const PlusButton = styled.button`
+  background: #3F72AF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0 1rem;
+  font-size: 1.4rem;
+  cursor: pointer;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  &:hover { background: #112D4E; }
+`;
+
+const CompanyRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+`;
+
+const CancelButton = styled.button`
+  background: #e5e7eb;
+  color: #374151;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover { background: #d1d5db; }
+`;
+
 const Packagecreation = () => {
   const [tests, setTests] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [tableData, setTableData] = useState([]);
-  const [selectedAmount, setSelectedAmount] = useState("");
   const [selectedTest, setSelectedTest] = useState("");
+  const [packageName, setPackageName] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
+
+  // Modal state
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [newCompany, setNewCompany] = useState({
+    company_id: "",
+    company_name: "",
+    address: "",
+    contact_number: "",
+    contact_email: "",
+    industry: "",
+    website: "",
+    established_year: "",
+  });
+  const [savingCompany, setSavingCompany] = useState(false);
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
 
@@ -325,7 +440,59 @@ const Packagecreation = () => {
       }
     };
     fetchTests();
-  }, []);
+  }, [Labbaseurl]);
+
+  // Fetch companies
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get(`${Labbaseurl}companies/`);
+        setCompanies(res.data);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+      }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
+
+  // Open create company modal and fetch next ID
+  const openCompanyModal = async () => {
+    try {
+      const res = await axios.get(`${Labbaseurl}companies/next-id/`);
+      setNewCompany(prev => ({ ...prev, company_id: res.data.company_id }));
+    } catch (err) {
+      setNewCompany(prev => ({ ...prev, company_id: "CHC001" }));
+    }
+    setShowCompanyModal(true);
+  };
+
+  const handleNewCompanyChange = (e) => {
+    const { name, value } = e.target;
+    setNewCompany(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateCompany = async () => {
+    if (!newCompany.company_name.trim()) {
+      alert("Company name is required");
+      return;
+    }
+    setSavingCompany(true);
+    try {
+      const res = await axios.post(`${Labbaseurl}companies/`, newCompany);
+      if (res.status === 201) {
+        const listRes = await axios.get(`${Labbaseurl}companies/`);
+        setCompanies(listRes.data);
+        setSelectedCompanyId(res.data.company_id);
+        setShowCompanyModal(false);
+        setNewCompany({ company_id: "", company_name: "", address: "", contact_number: "", contact_email: "", industry: "", website: "", established_year: "" });
+        alert(`Company created! ID: ${res.data.company_id}`);
+      }
+    } catch (err) {
+      alert("Failed to create company: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+    } finally {
+      setSavingCompany(false);
+    }
+  };
 
   const handleTestSelect = (e) => {
     const selectedName = e.target.value;
@@ -346,22 +513,13 @@ const Packagecreation = () => {
       {
         sNo: prev.length + 1,
         name: testObj.name,
+        test_id: testObj.test_id || null,
         MRP: testObj.MRP,
         L2L_Rate_Card: testObj.L2L_Rate_Card,
-        total: (Number(selectedAmount) || 0) * (testObj.L2L_Rate_Card || 0),
       },
     ]);
 
-    // Reset selection
     setSelectedTest("");
-  };
-
-  const handleAmountChange = (value) => {
-    setSelectedAmount(value);
-    const numericValue = Number(value) || 0;
-    setTableData((prev) =>
-      prev.map((row) => ({ ...row, total: numericValue * (row.L2L_Rate_Card || 0) }))
-    );
   };
 
   const handleRemove = (index) => {
@@ -372,19 +530,32 @@ const Packagecreation = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!selectedCompanyId) {
+      alert("Please select a company");
+      return;
+    }
+    if (!packageName.trim()) {
+      alert("Please enter a package name");
+      return;
+    }
     if (tableData.length === 0) {
       alert("Add at least one test to create a package");
       return;
     }
-
-    if (!selectedAmount || Number(selectedAmount) <= 0) {
-      alert("Please enter a valid amount");
+    if (!totalAmount || Number(totalAmount) <= 0) {
+      alert("Please enter a valid total amount");
       return;
     }
 
     const payload = {
-      amount: selectedAmount,
-      tests: tableData,
+      package_name: packageName.trim(),
+      company_id: selectedCompanyId,
+      totalAmount: Number(totalAmount),
+      investigations: tableData.map((row) => ({
+        testname: row.name,
+        test_id: row.test_id,
+      })),
     };
 
     try {
@@ -394,11 +565,13 @@ const Packagecreation = () => {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (response.ok) {
-        alert("Package created successfully!");
+      if (response.ok && data.status === "success") {
+        alert(`Package created! ID: ${data.data.package_id}`);
         setTableData([]);
-        setSelectedAmount("");
+        setTotalAmount("");
         setSelectedTest("");
+        setPackageName("");
+        setSelectedCompanyId("");
       } else {
         alert("Error: " + (data.message || "Failed to create package"));
       }
@@ -415,11 +588,48 @@ const Packagecreation = () => {
     <PageContainer>
       <Container>
         <Header>
-          <Title>Create Package</Title>
+          <Title>Create Company & Package</Title>
         </Header>
 
         <Card>
           <form onSubmit={handleSubmit}>
+
+            {/* Company Dropdown */}
+            <FormGroup>
+              <FormLabel>Company</FormLabel>
+              <CompanyRow>
+                <FormSelect
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  required
+                  style={{ flex: 1 }}
+                >
+                  <option value="">-- Select Company --</option>
+                  {companies.map((c) => (
+                    <option key={c.company_id} value={c.company_id}>
+                      {c.company_name} ({c.company_id})
+                    </option>
+                  ))}
+                </FormSelect>
+                <PlusButton type="button" onClick={openCompanyModal} title="Create new company">
+                  +
+                </PlusButton>
+              </CompanyRow>
+            </FormGroup>
+
+            {/* Package Name */}
+            <FormGroup>
+              <FormLabel>Package Name</FormLabel>
+              <Input
+                type="text"
+                value={packageName}
+                onChange={(e) => setPackageName(e.target.value)}
+                placeholder="Enter package name"
+                required
+              />
+            </FormGroup>
+
+            {/* Test Selection */}
             <FormGroup>
               <FormLabel>Select Test</FormLabel>
               <FormSelect value={selectedTest} onChange={handleTestSelect}>
@@ -475,12 +685,12 @@ const Packagecreation = () => {
 
                 <AmountSection>
                   <FormGroup>
-                    <FormLabel>Package Amount</FormLabel>
+                    <FormLabel>Total Package Amount (₹)</FormLabel>
                     <Input
                       type="number"
-                      value={selectedAmount}
-                      onChange={(e) => handleAmountChange(e.target.value)}
-                      placeholder="Enter package amount"
+                      value={totalAmount}
+                      onChange={(e) => setTotalAmount(e.target.value)}
+                      placeholder="Enter total package amount"
                       required
                       min="1"
                     />
@@ -502,6 +712,85 @@ const Packagecreation = () => {
           </form>
         </Card>
       </Container>
+
+      {/* Create Company Modal */}
+      {showCompanyModal && (
+        <ModalOverlay onClick={() => setShowCompanyModal(false)}>
+          <ModalBox onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>Create New Company</ModalTitle>
+
+            {/* <ModalLabel>Company ID (Auto-generated)</ModalLabel>
+            <ModalInput value={newCompany.company_id} readOnly /> */}
+
+            <ModalLabel>Company Name *</ModalLabel>
+            <ModalInput
+              name="company_name"
+              value={newCompany.company_name}
+              onChange={handleNewCompanyChange}
+              placeholder="e.g. Acme Corp"
+            />
+
+            <ModalLabel>Address</ModalLabel>
+            <ModalInput
+              name="address"
+              value={newCompany.address}
+              onChange={handleNewCompanyChange}
+              placeholder="Company address"
+            />
+
+            <ModalLabel>Contact Number</ModalLabel>
+            <ModalInput
+              name="contact_number"
+              value={newCompany.contact_number}
+              onChange={handleNewCompanyChange}
+              placeholder="+91 XXXXXXXXXX"
+            />
+
+            <ModalLabel>Contact Email</ModalLabel>
+            <ModalInput
+              name="contact_email"
+              type="email"
+              value={newCompany.contact_email}
+              onChange={handleNewCompanyChange}
+              placeholder="email@company.com"
+            />
+
+            <ModalLabel>Industry</ModalLabel>
+            <ModalInput
+              name="industry"
+              value={newCompany.industry}
+              onChange={handleNewCompanyChange}
+              placeholder="e.g. Manufacturing"
+            />
+
+            <ModalLabel>Website</ModalLabel>
+            <ModalInput
+              name="website"
+              value={newCompany.website}
+              onChange={handleNewCompanyChange}
+              placeholder="https://..."
+            />
+
+            <ModalLabel>Established Year</ModalLabel>
+            <ModalInput
+              name="established_year"
+              type="number"
+              value={newCompany.established_year}
+              onChange={handleNewCompanyChange}
+              placeholder="e.g. 2000"
+            />
+
+            <ModalActions>
+              <CancelButton type="button" onClick={() => setShowCompanyModal(false)}>
+                Cancel
+              </CancelButton>
+              <SubmitButton type="button" onClick={handleCreateCompany} disabled={savingCompany}>
+                {savingCompany ? "Saving..." : "Create Company"}
+              </SubmitButton>
+            </ModalActions>
+          </ModalBox>
+        </ModalOverlay>
+      )}
     </PageContainer>
   );
 };

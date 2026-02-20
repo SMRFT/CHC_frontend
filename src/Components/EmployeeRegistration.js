@@ -291,28 +291,45 @@ const EmployeeRegistration = () => {
     employee_id: "",
     gender: "Female",
     age: "",
-    company_name: "ACSEN TEX P LTD",
+    company_name: "",
     department: "",
     email: "",
     mobile: "",
     registration_datetime: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
     payment_mode: "Credit",
+    company_id: "",
+    package_id: "",
   });
 
   const [scanning, setScanning] = useState(false);
   const [holdScan, setHoldScan] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [packages, setPackages] = useState([]);
-  const [lastScanned, setLastScanned] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
-  const [errors, setErrors] = useState({});
+  const [companies, setCompanies] = useState([]);
+
+  // Fetch Companies
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await fetch(`${Labbaseurl}companies/`);
+        const data = await res.json();
+        // The backend returns a list directly based on the view code
+        setCompanies(data);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+        toast.error("Failed to load companies");
+      }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
 
 
 
   // ✅ Validation function
   const validateForm = () => {
-    const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age"];
+    const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age", "package_id"];
     let newErrors = {};
     let valid = true;
 
@@ -324,7 +341,6 @@ const EmployeeRegistration = () => {
       }
     });
 
-    setErrors(newErrors);
     return valid;
   };
 
@@ -360,19 +376,48 @@ const EmployeeRegistration = () => {
     setFormData((prev) => ({ ...prev, gender }));
   }, [formData.title]);
 
-  // Fetch packages
-  useEffect(() => {
-    const fetchPackages = async () => {
-      try {
-        const res = await fetch(`${Labbaseurl}get_packages/`);
-        const data = await res.json();
-        if (data.status === "success") setPackages(data.data);
-      } catch (err) {
-        console.error("Error fetching packages:", err);
+  // Fetch packages based on company_id
+  const fetchPackages = async (companyId) => {
+    if (!companyId) {
+      setPackages([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${Labbaseurl}get_packages/?company_id=${companyId}`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setPackages(data.data);
+      } else {
+        setPackages([]);
       }
-    };
-    fetchPackages();
-  }, [Labbaseurl]);
+    } catch (err) {
+      console.error("Error fetching packages:", err);
+      toast.error("Error fetching packages");
+    }
+  };
+
+  const handleCompanyChange = (e) => {
+    const selectedCompanyId = e.target.value;
+    const selectedCompany = companies.find(c => c.company_id === selectedCompanyId);
+
+    if (selectedCompany) {
+      setFormData(prev => ({
+        ...prev,
+        company_id: selectedCompanyId,
+        company_name: selectedCompany.company_name,
+        package_id: "" // Reset package when company changes
+      }));
+      fetchPackages(selectedCompanyId);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        company_id: "",
+        company_name: "",
+        package_id: ""
+      }));
+      setPackages([]);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -387,20 +432,25 @@ const EmployeeRegistration = () => {
 
     setIsSubmitting(true);
 
+    const selectedPackage = packages.find(pkg => pkg._id === formData.package_id);
+
+    // Safety check (validation should have caught this, but just in case)
+    if (!selectedPackage) {
+      toast.error("Please select a valid package");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       employee_id: formData.employee_id,
       barcode: formData.barcode,
       company_name: formData.company_name,
-      testdetails: packages.flatMap((pkg) =>
-        pkg.investigations.map((inv) => ({
-          testname: inv.testname,
-          test_id: inv.test_id,
-        }))
-      ),
-      totalAmount: packages.reduce(
-        (sum, pkg) => sum + (pkg.totalAmount || 0),
-        0
-      ),
+      company_id: formData.company_id,
+      testdetails: selectedPackage.investigations.map((inv) => ({
+        testname: inv.testname,
+        test_id: inv.test_id,
+      })),
+      totalAmount: selectedPackage.totalAmount || 0,
       employee_name: formData.employee_name,
       gender: formData.gender,
       age: formData.age,
@@ -420,8 +470,9 @@ const EmployeeRegistration = () => {
 
       if (res.ok && data.status === "success") {
         toast.success("Employee registered successfully!");
-        // ✅ Clear form
-        setFormData({
+        // ✅ Clear personal/employee fields only — keep company & package
+        setFormData((prev) => ({
+          ...prev,
           barcode: "",
           title: "Ms",
           first_name: "",
@@ -430,7 +481,6 @@ const EmployeeRegistration = () => {
           employee_id: "",
           gender: "Female",
           age: "",
-          company_name: "JS AUTO CAST FOUNDRY INDIA PVT LTD,",
           department: "",
           email: "",
           mobile: "",
@@ -440,7 +490,8 @@ const EmployeeRegistration = () => {
             .toISOString()
             .slice(0, 16),
           payment_mode: "Credit",
-        });
+          // company_id, company_name, package_id are preserved from prev
+        }));
       } else {
         toast.error(data.message || "Registration failed");
       }
@@ -567,9 +618,9 @@ const EmployeeRegistration = () => {
           </FormRow>
         </Card>
 
-        {/* Company Details */}
+        {/* Company & Package Details */}
         <Card>
-          <CardHeader>Company Details</CardHeader>
+          <CardHeader>Company & Package Details</CardHeader>
           <FormRow>
             <FormGroup>
               <label>Employee ID</label>
@@ -598,48 +649,50 @@ const EmployeeRegistration = () => {
             </FormGroup>
             <FormGroup>
               <label>Company Name</label>
-              <StyledInput value={formData.company_name} readOnly />
-            </FormGroup>
-          </FormRow>
-        </Card>
-
-        {/* Registration Details */}
-        <Card>
-          <CardHeader>Registration Details</CardHeader>
-          <FormRow>
-            <FormGroup>
-              <label>Registration Date & Time</label>
-              <StyledInput
-                type="datetime-local"
-                value={formData.registration_datetime}
-                readOnly
-              />
+              <StyledSelect
+                name="company_name"
+                value={formData.company_id}
+                onChange={handleCompanyChange}
+              >
+                <option value="">Select Company</option>
+                {companies.map((company) => (
+                  <option key={company.company_id} value={company.company_id}>
+                    {company.company_name}
+                  </option>
+                ))}
+              </StyledSelect>
             </FormGroup>
             <FormGroup>
-              <label>Payment Mode</label>
-              <StyledInput value={formData.payment_mode} readOnly />
+              <label>Package</label>
+              <StyledSelect
+                name="package_id"
+                value={formData.package_id}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, package_id: e.target.value }))
+                }
+                disabled={packages.length === 0}
+              >
+                <option value="">
+                  {formData.company_id ? "Select Package" : "Select Company First"}
+                </option>
+                {packages.map((pkg) => (
+                  <option key={pkg._id} value={pkg._id}>
+                    {pkg.package_name}
+                  </option>
+                ))}
+              </StyledSelect>
             </FormGroup>
           </FormRow>
 
-          {/* ✅ Updated Package Table */}
-          <CardHeader>Available Packages</CardHeader>
-          {packages.length > 0 ? (
-            packages.map((pkg) => (
-              <div key={pkg._id} style={{ marginBottom: "2rem" }}>
-                {/* Package Name */}
-                <h3
-                  style={{
-                    textAlign: "center",
-                    margin: "1rem 0",
-                    color: "#1f2937",
-                    fontWeight: "700",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  {pkg.package_name}
+          {/* Display Selected Package Investigations */}
+          {formData.package_id && (() => {
+            const selectedPkg = packages.find(pkg => pkg._id === formData.package_id);
+            if (!selectedPkg) return null;
+            return (
+              <div style={{ marginTop: "1.5rem" }}>
+                <h3 style={{ textAlign: "center", margin: "1rem 0", color: "#1f2937", fontWeight: "700", fontSize: "1.1rem" }}>
+                  {selectedPkg.package_name}
                 </h3>
-
-                {/* Investigations Table - Reduced Width */}
                 <div style={{ maxWidth: "600px", margin: "0 auto", overflowX: "auto" }}>
                   <StyledTable style={{ width: "100%", minWidth: "300px" }}>
                     <thead>
@@ -649,20 +702,14 @@ const EmployeeRegistration = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pkg.investigations.map((inv, index) => (
+                      {selectedPkg.investigations.map((inv, index) => (
                         <tr key={index}>
-                          <TableCell style={{ textAlign: "center", width: "80px" }}>
-                            {index + 1}
-                          </TableCell>
-                          <TableCell style={{ textAlign: "left" }}>
-                            {inv.testname}
-                          </TableCell>
+                          <TableCell style={{ textAlign: "center", width: "80px" }}>{index + 1}</TableCell>
+                          <TableCell style={{ textAlign: "left" }}>{inv.testname}</TableCell>
                         </tr>
                       ))}
                     </tbody>
                   </StyledTable>
-
-                  {/* Total Amount Below Table */}
                   <div
                     style={{
                       textAlign: "center",
@@ -676,16 +723,12 @@ const EmployeeRegistration = () => {
                       color: "#1f2937"
                     }}
                   >
-                    Total Amount: ₹{pkg.totalAmount}
+                    Total Amount: ₹{selectedPkg.totalAmount}
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <p style={{ textAlign: "center", color: "#6b7280" }}>
-              No packages available
-            </p>
-          )}
+            );
+          })()}
         </Card>
 
         <ButtonGroup>

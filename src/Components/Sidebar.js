@@ -245,6 +245,7 @@ export default function Sidebar() {
     { path: "/OphthalmologyForm", label: "Ophthalmology", icon: <EyeFill /> },
     { path: "/RegisteredEmployees", label: "Employee List", icon: <People /> },
     { path: "/CHCReport", label: "CHC Report", icon: <People /> },
+    { path: "/PackageCreation", label: "Company & Package Creation", icon: <PersonLinesFill /> },
   ]), []);
 
   // Filter by role

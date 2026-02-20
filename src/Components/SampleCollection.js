@@ -428,15 +428,24 @@ const SampleCollection = () => {
   const [showModal, setShowModal] = useState(false)
   const [filters, setFilters] = useState({
     date: new Date().toISOString().split("T")[0],
-    company_id: "CHC002", // Added company_id to filters
+    company_id: "",
     employee_id: "",
     barcode: "",
   })
   const [testSelections, setTestSelections] = useState({})
   const [testStatuses, setTestStatuses] = useState({})
   const [saving, setSaving] = useState(false)
+  const [companies, setCompanies] = useState([])
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
+
+  // Fetch companies for dropdown
+  useEffect(() => {
+    fetch(`${Labbaseurl}companies/`)
+      .then((r) => r.json())
+      .then((data) => setCompanies(Array.isArray(data) ? data : []))
+      .catch(console.error)
+  }, [Labbaseurl])
 
   // Get logged in user ID from localStorage
   const getLoggedInUserId = () => {
@@ -725,17 +734,22 @@ const SampleCollection = () => {
               onChange={(e) => handleFilterChange("date", e.target.value)}
             />
           </FilterGroup>
-          {/* Added Company ID field as required */}
+          {/* Company dropdown */}
           <FilterGroup>
-            <Label htmlFor="company_id">Company ID *</Label>
-            <Input
+            <Label htmlFor="company_id">Company *</Label>
+            <Select
               id="company_id"
-              type="text"
               value={filters.company_id}
               onChange={(e) => handleFilterChange("company_id", e.target.value)}
-              placeholder="Enter Company ID"
               required
-            />
+            >
+              <option value="">-- Select Company --</option>
+              {companies.map((c) => (
+                <option key={c.company_id} value={c.company_id}>
+                  {c.company_name} ({c.company_id})
+                </option>
+              ))}
+            </Select>
           </FilterGroup>
           <FilterGroup>
             <Label htmlFor="employee_id">Employee ID</Label>
