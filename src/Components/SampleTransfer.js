@@ -475,7 +475,8 @@ const SampleTransfer = () => {
   const [selectedSample, setSelectedSample] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split("T")[0],
+    from_date: new Date().toISOString().split("T")[0],
+    to_date: new Date().toISOString().split("T")[0],
     company_id: "",
     employee_id: "",
     barcode: "",
@@ -525,7 +526,7 @@ const SampleTransfer = () => {
     setSuccess("")
 
     if (!filters.company_id) {
-      setError("Company ID is required")
+      setError("Please select a company to search collected samples.")
       setLoading(false)
       return
     }
@@ -533,7 +534,8 @@ const SampleTransfer = () => {
     try {
       const queryParams = new URLSearchParams({
         samplestatus: "Collected",
-        date: filters.date,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
         company_id: filters.company_id,
       })
 
@@ -677,9 +679,11 @@ const SampleTransfer = () => {
         return
       }
 
-      // ✅ Include date in PATCH payload
+      // ✅ Include date range in PATCH payload
       const sampleData = {
-        date: filters.date, // Required for backend
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+        date: filters.from_date, // Required for backend compatibility
         company_id: filters.company_id,
         barcode: selectedSample.barcode,
         employee_id: selectedSample.employee_id,
@@ -723,9 +727,10 @@ const SampleTransfer = () => {
     return localStorage.getItem("user_id") || "system"
   }
 
-  useEffect(() => {
-    fetchCollectedSamples()
-  }, [])
+  // Removed auto-fetch on mount to prevent 400 errors
+  // useEffect(() => {
+  //   fetchCollectedSamples()
+  // }, [])
 
   const hasSelectedTestsForTransfer = Object.values(testSelections).some((selected) => selected)
 
@@ -741,12 +746,21 @@ const SampleTransfer = () => {
           <SectionTitle>Search Parameters</SectionTitle>
           <FilterSection>
             <FilterGroup>
-              <Label htmlFor="date">Transfer Date</Label>
+              <Label htmlFor="from_date">From Date</Label>
               <Input
-                id="date"
+                id="from_date"
                 type="date"
-                value={filters.date}
-                onChange={(e) => handleFilterChange("date", e.target.value)}
+                value={filters.from_date}
+                onChange={(e) => handleFilterChange("from_date", e.target.value)}
+              />
+            </FilterGroup>
+            <FilterGroup>
+              <Label htmlFor="to_date">To Date</Label>
+              <Input
+                id="to_date"
+                type="date"
+                value={filters.to_date}
+                onChange={(e) => handleFilterChange("to_date", e.target.value)}
               />
             </FilterGroup>
             {/* Company dropdown */}

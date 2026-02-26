@@ -558,26 +558,35 @@ export default function DoctorApprovalOphthalmology() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notification, setNotification] = useState({ show: false, message: "", type: "" });
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    const fetchOphthalmology = async () => {
-      try {
-        const response = await axios.get(`${Labbaseurl}get_ophthalmology/`);
-        setOphthalmology(response.data || []);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to fetch ophthalmology data.");
-        setLoading(false);
-      }
-    };
     fetchOphthalmology();
-  }, []);
+  }, [startDate, endDate]);
+
+  const fetchOphthalmology = async () => {
+    setLoading(true);
+    try {
+      let url = `${Labbaseurl}get_ophthalmology/`;
+      if (startDate) {
+        url += `${url.includes('?') ? '&' : '?'}from_date=${startDate.toISOString().split('T')[0]}`;
+        if (endDate) {
+          url += `&to_date=${endDate.toISOString().split('T')[0]}`;
+        }
+      }
+      const response = await axios.get(url);
+      setOphthalmology(response.data || []);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch ophthalmology data.");
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim().toLowerCase()), 300);
@@ -612,7 +621,8 @@ export default function DoctorApprovalOphthalmology() {
       (op.employee_id && String(op.employee_id).toLowerCase().includes(q)) ||
       (op.employee_name && String(op.employee_name).toLowerCase().includes(q));
 
-    // Normalize dates to ignore time component
+    // Back-end now filters by date, but keeping useMemo for search/status
+    /*
     let matchesDate = true;
     if (startDate || endDate) {
       if (!recordDate) {
@@ -627,6 +637,8 @@ export default function DoctorApprovalOphthalmology() {
           (!normalizedEndDate || normalizedRecordDate <= normalizedEndDate);
       }
     }
+    */
+    const matchesDate = true;
 
     // Status filter
     const matchesStatus = !statusFilter || (op.status && op.status.toLowerCase() === statusFilter.toLowerCase());

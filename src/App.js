@@ -17,6 +17,7 @@ import Dashboard from "./Components/Dashboard";
 import Register from "./Components/Register";
 import Login from "./Components/Login";
 import CHCReport from "./Components/CHCReport";
+import OffsitePatients from "./Components/OffsitePatients";
 
 
 // Content now accepts a flag to control the left margin
@@ -52,6 +53,7 @@ function AppInner() {
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Register" element={<Register />} />
           <Route path="/CHCReport" element={<CHCReport />} />
+          <Route path="/OffsitePatients" element={<OffsitePatients />} />
 
           <Route path="/" element={<Login />} />
 

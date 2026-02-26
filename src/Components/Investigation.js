@@ -333,8 +333,8 @@ export default function Investigation() {
   const [toasts, setToasts] = useState([])
 
   // Date range state
-  const [startDate, setStartDate] = useState(null) // from
-  const [endDate, setEndDate] = useState(null) // to
+  const [startDate, setStartDate] = useState(new Date()) // from
+  const [endDate, setEndDate] = useState(new Date()) // to
 
   // Search state + debounce
   const [searchInput, setSearchInput] = useState("") // raw input
@@ -360,11 +360,25 @@ export default function Investigation() {
     }, 4000)
   }
 
-  // Reusable fetch + merge
-  const refreshData = async () => {
-    const empRes = await axios.get(`${Labbaseurl}get_all_employees/`)
+  // Reusable fetch + merge (Backend filtering)
+  const refreshData = async (fDate, tDate) => {
+    let empUrl = `${Labbaseurl}get_all_employees/`
+    let invUrl = `${Labbaseurl}get_investigations/`
+
+    if (fDate) {
+      const fd = fDate.toISOString().split("T")[0]
+      empUrl += `?from_date=${fd}`
+      invUrl += `?from_date=${fd}`
+      if (tDate) {
+        const td = tDate.toISOString().split("T")[0]
+        empUrl += `&to_date=${td}`
+        invUrl += `&to_date=${td}`
+      }
+    }
+
+    const empRes = await axios.get(empUrl)
     const employeesData = empRes.data || []
-    const invRes = await axios.get(`${Labbaseurl}get_investigations/`)
+    const invRes = await axios.get(invUrl)
     const investigationsData = invRes.data || []
 
     const merged = employeesData.map((emp) => {
@@ -376,18 +390,18 @@ export default function Investigation() {
     return merged
   }
 
-  // Fetch employees & investigations on mount
+  // Fetch employees & investigations on mount or date change
   useEffect(() => {
     ; (async () => {
       try {
-        const merged = await refreshData()
+        const merged = await refreshData(startDate, endDate)
         if (merged.length > 0) showToast(`${merged.length} employees loaded successfully`, "success")
       } catch (err) {
         console.error(err)
         showToast("Failed to load employees or investigations", "error")
       }
     })()
-  }, [Labbaseurl])
+  }, [Labbaseurl, startDate, endDate])
 
   // Debounce search input
   useEffect(() => {
@@ -422,7 +436,10 @@ export default function Investigation() {
         (emp.employee_name && String(emp.employee_name).toLowerCase().includes(q))
       if (!matchesSearch) return false
 
-      // Date range inclusive on created_date if present
+      // Date range logic moved to backend, frontend can still do secondary check if needed
+      // but typically we rely on whatever backend returned for the list.
+      // Keeping it simple for now by relying on backend data.
+      /*
       if (s || e) {
         const created = emp.created_date ? new Date(emp.created_date) : null
         if (created) created.setHours(0, 0, 0, 0)
@@ -433,6 +450,7 @@ export default function Investigation() {
           (s && e && created && created.getTime() >= s.getTime() && created.getTime() <= e.getTime())
         if (!inRange) return false
       }
+      */
 
       // File filters (AND)
       const filesState = {

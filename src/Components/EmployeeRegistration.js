@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FaBarcode } from "react-icons/fa";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -252,10 +252,26 @@ const AlertBox = styled.div`
 // ---- Scanner Component ----
 const Scanner = ({ onDetected }) => {
   useEffect(() => {
-    // Initialize Html5QrcodeScanner
+    // Initialize Html5QrcodeScanner with optimized settings
     const scanner = new Html5QrcodeScanner(
       "reader",
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      {
+        fps: 20, // Increased FPS for faster detection
+        qrbox: { width: 350, height: 150 }, // Adjusted for 1D barcodes
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true, // Helpful in low light
+        useBarCodeDetectorIfSupported: true, // Use native API if available
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ]
+      },
       /* verbose= */ false
     );
 
@@ -283,6 +299,7 @@ const Scanner = ({ onDetected }) => {
 // ---- Main Component ----
 const EmployeeRegistration = () => {
   const [formData, setFormData] = useState({
+    registration_mode: "Onsite", // "Onsite" or "Offsite"
     barcode: "",
     title: "Ms",
     first_name: "",
@@ -296,7 +313,9 @@ const EmployeeRegistration = () => {
     email: "",
     mobile: "",
     registration_datetime: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-    payment_mode: "Credit",
+    payment_type: "Credit", // "Cash" or "Credit"
+    cash_mode: "Cash",      // "Cash", "UPI", or "Card"
+    transaction_id: "",
     company_id: "",
     package_id: "",
   });
@@ -330,6 +349,8 @@ const EmployeeRegistration = () => {
   // ✅ Validation function
   const validateForm = () => {
     const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age", "package_id"];
+
+
     let newErrors = {};
     let valid = true;
 
@@ -375,6 +396,29 @@ const EmployeeRegistration = () => {
     }
     setFormData((prev) => ({ ...prev, gender }));
   }, [formData.title]);
+
+  // Fetch next offsite barcode when mode is switched to Offsite
+  const fetchNextBarcode = async () => {
+    try {
+      const res = await fetch(`${Labbaseurl}get_next_offsite_barcode/`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setFormData(prev => ({ ...prev, barcode: data.barcode }));
+      }
+    } catch (err) {
+      console.error("Error fetching next barcode:", err);
+      toast.error("Failed to fetch auto-barcode");
+    }
+  };
+
+  const handleModeChange = (mode) => {
+    if (mode === "Offsite") {
+      fetchNextBarcode();
+    } else {
+      setFormData(prev => ({ ...prev, barcode: "" }));
+    }
+    setFormData(prev => ({ ...prev, registration_mode: mode }));
+  };
 
   // Fetch packages based on company_id
   const fetchPackages = async (companyId) => {
@@ -457,6 +501,9 @@ const EmployeeRegistration = () => {
       department: formData.department,
       email: formData.email,
       mobile: formData.mobile,
+      payment_mode: formData.payment_type === "Credit" ? "Credit" : formData.cash_mode,
+      transaction_id: formData.transaction_id || "",
+      registration_mode: formData.registration_mode,
     };
 
     try {
@@ -469,10 +516,11 @@ const EmployeeRegistration = () => {
       const data = await res.json();
 
       if (res.ok && data.status === "success") {
-        toast.success("Employee registered successfully!");
+        toast.success(`Employee registered successfully! (${formData.registration_mode} Mode)`);
         // ✅ Clear personal/employee fields only — keep company & package
         setFormData((prev) => ({
           ...prev,
+          registration_mode: "Onsite",
           barcode: "",
           title: "Ms",
           first_name: "",
@@ -489,7 +537,9 @@ const EmployeeRegistration = () => {
           )
             .toISOString()
             .slice(0, 16),
-          payment_mode: "Credit",
+          payment_type: "Credit",
+          cash_mode: "Cash",
+          transaction_id: "",
           // company_id, company_name, package_id are preserved from prev
         }));
       } else {
@@ -528,19 +578,69 @@ const EmployeeRegistration = () => {
       )}
 
       <FormContainer onSubmit={handleSubmit}>
-        <ScannerContainer>
-          <ScanButton type="button" onClick={() => setScanning(true)}>
-            <FaBarcode /> Scan Barcode
-          </ScanButton>
-          <StyledInput
-            id="barcodeInput"
-            type="text"
-            name="barcode"
-            value={formData.barcode}
-            onChange={handleChange}
-            placeholder="Enter or scan barcode"
-          />
-        </ScannerContainer>
+        <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center", background: "#f3f4f6", padding: "1rem", borderRadius: "10px" }}>
+          <FormGroup>
+            <label style={{ marginBottom: "0.5rem" }}>Registration Mode</label>
+            <div style={{ display: "flex", gap: "1.5rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "600" }}>
+                <input
+                  type="radio"
+                  name="registration_mode"
+                  value="Onsite"
+                  checked={formData.registration_mode === "Onsite"}
+                  onChange={() => handleModeChange("Onsite")}
+                  style={{ width: "18px", height: "18px" }}
+                />
+                Onsite
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "600" }}>
+                <input
+                  type="radio"
+                  name="registration_mode"
+                  value="Offsite"
+                  checked={formData.registration_mode === "Offsite"}
+                  onChange={() => handleModeChange("Offsite")}
+                  style={{ width: "18px", height: "18px" }}
+                />
+                Offsite
+              </label>
+            </div>
+          </FormGroup>
+
+          <div style={{ flex: "1", minWidth: "300px" }}>
+            <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: "600", color: "#374151", fontSize: "0.875rem" }}>
+              Barcode {formData.registration_mode === "Offsite" && "(Auto-generated)"}
+            </label>
+            <ScannerContainer style={{ marginBottom: 0 }}>
+              <ScanButton
+                type="button"
+                onClick={() => setScanning(true)}
+                disabled={formData.registration_mode === "Offsite"}
+                style={{
+                  opacity: formData.registration_mode === "Offsite" ? 0.5 : 1,
+                  background: formData.registration_mode === "Offsite" ? "#9ca3af" : "#4f46e5"
+                }}
+              >
+                <FaBarcode /> Scan Barcode
+              </ScanButton>
+              <StyledInput
+                id="barcodeInput"
+                type="text"
+                name="barcode"
+                value={formData.barcode}
+                onChange={handleChange}
+                placeholder={formData.registration_mode === "Offsite" ? "Fetching barcode..." : "Enter or scan barcode"}
+                disabled={formData.registration_mode === "Offsite"}
+                style={{
+                  background: formData.registration_mode === "Offsite" ? "#e5e7eb" : "white",
+                  borderColor: formData.registration_mode === "Offsite" ? "#d1d5db" : "#3F72AF",
+                  fontWeight: formData.registration_mode === "Offsite" ? "bold" : "normal",
+                  color: formData.registration_mode === "Offsite" ? "#112D4E" : "inherit"
+                }}
+              />
+            </ScannerContainer>
+          </div>
+        </div>
 
         {/* Personal Details */}
         <Card>
@@ -682,6 +782,46 @@ const EmployeeRegistration = () => {
                 ))}
               </StyledSelect>
             </FormGroup>
+            <FormGroup>
+              <label>Payment Mode</label>
+              <StyledSelect
+                name="payment_type"
+                value={formData.payment_type}
+                onChange={handleChange}
+              >
+                <option value="Credit">Credit</option>
+                <option value="Cash">Cash</option>
+              </StyledSelect>
+            </FormGroup>
+
+            {formData.payment_type === "Cash" && (
+              <>
+                <FormGroup>
+                  <label>Cash Mode</label>
+                  <StyledSelect
+                    name="cash_mode"
+                    value={formData.cash_mode}
+                    onChange={handleChange}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Card">Card</option>
+                  </StyledSelect>
+                </FormGroup>
+
+                {(formData.cash_mode === "UPI" || formData.cash_mode === "Card") && (
+                  <FormGroup>
+                    <label>Transaction ID (Optional)</label>
+                    <StyledInput
+                      name="transaction_id"
+                      value={formData.transaction_id}
+                      onChange={handleChange}
+                      placeholder="Enter transaction ID"
+                    />
+                  </FormGroup>
+                )}
+              </>
+            )}
           </FormRow>
 
           {/* Display Selected Package Investigations */}
@@ -729,6 +869,11 @@ const EmployeeRegistration = () => {
               </div>
             );
           })()}
+        </Card>
+
+        {/* Payment Details */}
+        <Card>
+
         </Card>
 
         <ButtonGroup>

@@ -228,17 +228,25 @@ export default function DoctorApprovalInvestigations() {
   const [toast, setToast] = useState({ show: false, msg: "", type: "" });
 
   const [searchInput, setSearchInput] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get(`${Labbaseurl}get_investigations/`);
+      let url = `${Labbaseurl}get_investigations/`;
+      if (startDate) {
+        url += `${url.includes('?') ? '&' : '?'}from_date=${startDate.toISOString().split('T')[0]}`;
+        if (endDate) {
+          url += `&to_date=${endDate.toISOString().split('T')[0]}`;
+        }
+      }
+      const res = await axios.get(url);
       setInvestigations(res.data || []);
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -264,12 +272,15 @@ export default function DoctorApprovalInvestigations() {
 
       const statusMatch = statusFilter === "all" || (inv.status || "pending") === statusFilter;
 
+      // Back-end now filters by date, but keeping useMemo for search/status
+      /*
       const date = inv.date ? new Date(inv.date).setHours(0, 0, 0, 0) : null;
       const start = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null;
       const end = endDate ? new Date(endDate).setHours(0, 0, 0, 0) : null;
       const dateMatch = (!start || (date && date >= start)) && (!end || (date && date <= end));
-
       return matchesSearch && statusMatch && dateMatch;
+      */
+      return matchesSearch && statusMatch;
     });
   }, [investigations, searchInput, statusFilter, startDate, endDate]);
 

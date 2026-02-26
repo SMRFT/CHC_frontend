@@ -213,8 +213,8 @@ const Ophthalmology = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [filledBarcodes, setFilledBarcodes] = useState({ approved: [], pending: [] })
 
-  const [startDate, setStartDate] = useState(null)
-  const [endDate, setEndDate] = useState(null)
+  const [startDate, setStartDate] = useState(new Date())
+  const [endDate, setEndDate] = useState(new Date())
   const [searchInput, setSearchInput] = useState("")
   const [statusFilter, setStatusFilter] = useState("not_filled")
 
@@ -228,28 +228,43 @@ const Ophthalmology = () => {
   const [patientComplaints, setPatientComplaints] = useState("")
   const [remarks, setRemarks] = useState("")
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [empRes, ophRes] = await Promise.all([
-          axios.get(`${Labbaseurl}get_all_employees/`),
-          axios.get(`${Labbaseurl}get_all_ophthalmology/`),
-        ])
-        const approved = (ophRes.data.approved || []).map(i => i.barcode)
-        const pending = (ophRes.data.pending || []).map(i => i.barcode)
+  const fetchData = async () => {
+    try {
+      let empUrl = `${Labbaseurl}get_all_employees/`
+      let ophUrl = `${Labbaseurl}get_all_ophthalmology/`
 
-        setAllEmployees(empRes.data || [])
-        setFilledBarcodes({ approved, pending })
-
-        // Default "Not Filled" list
-        const notFilled = (empRes.data || []).filter(e => !approved.includes(e.barcode) && !pending.includes(e.barcode))
-        setEmployees(notFilled)
-      } catch (err) {
-        toast.error("Error loading data")
+      if (startDate) {
+        const fStr = startDate.toISOString().split("T")[0]
+        empUrl += `${empUrl.includes("?") ? "&" : "?"}from_date=${fStr}`
+        ophUrl += `${ophUrl.includes("?") ? "&" : "?"}from_date=${fStr}`
+        if (endDate) {
+          const tStr = endDate.toISOString().split("T")[0]
+          empUrl += `&to_date=${tStr}`
+          ophUrl += `&to_date=${tStr}`
+        }
       }
+
+      const [empRes, ophRes] = await Promise.all([
+        axios.get(empUrl),
+        axios.get(ophUrl),
+      ])
+      const approved = (ophRes.data.approved || []).map(i => i.barcode)
+      const pending = (ophRes.data.pending || []).map(i => i.barcode)
+
+      setAllEmployees(empRes.data || [])
+      setFilledBarcodes({ approved, pending })
+
+      // Default "Not Filled" list
+      const notFilled = (empRes.data || []).filter(e => !approved.includes(e.barcode) && !pending.includes(e.barcode))
+      setEmployees(notFilled)
+    } catch (err) {
+      toast.error("Error loading data")
     }
+  }
+
+  useEffect(() => {
     fetchData()
-  }, [])
+  }, [startDate, endDate])
 
   const filteredList = useMemo(() => {
     let list = []
@@ -264,12 +279,15 @@ const Ophthalmology = () => {
       const q = searchInput.toLowerCase()
       const matchesSearch = !q || emp.employee_name?.toLowerCase().includes(q) || emp.barcode?.toLowerCase().includes(q)
 
+      // Backend now handles date ranges
+      /*
       const created = emp.created_date ? new Date(emp.created_date).setHours(0, 0, 0, 0) : null
       const s = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null
       const e = endDate ? new Date(endDate).setHours(0, 0, 0, 0) : null
       const matchesDate = (!s || (created && created >= s)) && (!e || (created && created <= e))
-
       return matchesSearch && matchesDate
+      */
+      return matchesSearch
     })
   }, [statusFilter, allEmployees, employees, filledBarcodes, searchInput, startDate, endDate])
 

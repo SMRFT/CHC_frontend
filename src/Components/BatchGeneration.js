@@ -382,7 +382,10 @@ const EmptyState = styled.div`
 `
 
 const BatchGeneration = () => {
-  const [selectedDate, setSelectedDate] = useState("")
+  const [filters, setFilters] = useState({
+    from_date: new Date().toISOString().split("T")[0],
+    to_date: new Date().toISOString().split("T")[0],
+  })
   const [transferredSamples, setTransferredSamples] = useState([])
   const [loadingSamples, setLoadingSamples] = useState(false)
   const [sampleError, setSampleError] = useState(null)
@@ -399,15 +402,16 @@ const BatchGeneration = () => {
     return today.toISOString().split("T")[0]
   }
 
-  useEffect(() => {
-    setSelectedDate(getCurrentDate())
-  }, [])
+  // Removed single date setter
+  // useEffect(() => {
+  //   setSelectedDate(getCurrentDate())
+  // }, [])
 
   useEffect(() => {
-    if (selectedDate) {
+    if (filters.from_date) {
       fetchTransferredSamples()
     }
-  }, [selectedDate])
+  }, [filters])
 
   const fetchTransferredSamples = async () => {
     setLoadingSamples(true)
@@ -416,8 +420,11 @@ const BatchGeneration = () => {
 
     try {
       let url = `${Labbaseurl}samples/transferred/?samplestatus=Transferred`
-      if (selectedDate) {
-        url += `&date=${selectedDate}`
+      if (filters.from_date) {
+        url += `&from_date=${filters.from_date}`
+      }
+      if (filters.to_date) {
+        url += `&to_date=${filters.to_date}`
       }
 
       const response = await fetch(url)
@@ -675,12 +682,21 @@ const BatchGeneration = () => {
           <SectionTitle>Search Parameters</SectionTitle>
           <FilterSection>
             <FilterGroup>
-              <Label htmlFor="selectedDate">Select Date</Label>
+              <Label htmlFor="from_date">From Date</Label>
               <Input
-                id="selectedDate"
+                id="from_date"
                 type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                value={filters.from_date}
+                onChange={(e) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
+              />
+            </FilterGroup>
+            <FilterGroup>
+              <Label htmlFor="to_date">To Date</Label>
+              <Input
+                id="to_date"
+                type="date"
+                value={filters.to_date}
+                onChange={(e) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
               />
             </FilterGroup>
           </FilterSection>
