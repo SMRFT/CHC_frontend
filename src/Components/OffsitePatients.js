@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import styled from "styled-components";
 import {
-    Download, Search, Calendar, FilterX, ChevronLeft, ChevronRight, Eye, X,
+    Download, Search, Calendar, FilterX, Eye, X,
     Printer, Barcode as BarcodeIcon
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -11,6 +11,8 @@ import "react-datepicker/dist/react-datepicker.css";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import JsBarcode from "jsbarcode";
+import HeaderImg from "./Images/Header.png";
+import FooterImg from "./Images/Footer.png";
 
 // --- Styled Components ---
 
@@ -343,7 +345,7 @@ export default function OffsitePatients() {
     const [loadingTests, setLoadingTests] = useState(false);
     const [currentPatient, setCurrentPatient] = useState(null);
 
-    const fetchBillings = async () => {
+    const fetchBillings = useCallback(async () => {
         try {
             const payload = {
                 from_date: startDate ? startDate.toISOString().split('T')[0] : null,
@@ -358,11 +360,11 @@ export default function OffsitePatients() {
             console.error("Fetch Error:", err);
             // toast.error("Failed to load offsite patients"); // Optional: minimize noise if needed
         }
-    };
+    }, [startDate, endDate, searchTerm, Labbaseurl]);
 
     useEffect(() => {
         fetchBillings();
-    }, [Labbaseurl]);
+    }, [fetchBillings]);
 
     useEffect(() => {
         const delay = setTimeout(() => {
@@ -395,15 +397,33 @@ export default function OffsitePatients() {
         setSelectedTests([]);
 
         try {
-            // Collect only test_ids that are available
-            const testIds = patient.testdetails
+            const parseDetails = (data) => {
+                if (typeof data === 'string') {
+                    try { return JSON.parse(data); } catch (e) { return []; }
+                }
+                return data || [];
+            };
+
+            const testDetails = parseDetails(patient.testdetails);
+            const chcDetails = parseDetails(patient.chctestdetails);
+
+            // Collect all test_ids from both testdetails and chctestdetails
+            const testIds = [
+                ...testDetails,
+                ...chcDetails
+            ]
                 .filter(t => t.test_id !== null && t.test_id !== undefined)
                 .map(t => t.test_id);
 
             if (testIds.length > 0) {
                 const res = await axios.post(`${Labbaseurl}get_test_details/`, { test_ids: testIds });
                 if (res.data.status === "success") {
-                    setSelectedTests(res.data.data);
+                    const filteredTests = (res.data.data || []).filter(test => {
+                        const name = (test.test_name || "").toLowerCase();
+                        const container = (test.collection_container || "").toLowerCase();
+                        return name !== "unknown" && container !== "n/a";
+                    });
+                    setSelectedTests(filteredTests);
                 }
             } else {
                 setSelectedTests([]);
@@ -414,6 +434,184 @@ export default function OffsitePatients() {
         } finally {
             setLoadingTests(false);
         }
+    };
+
+    const handlePrintBill = (patient) => {
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "absolute";
+        iframe.style.width = "0px";
+        iframe.style.height = "0px";
+        iframe.style.border = "none";
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow.document;
+
+        // Robust parsing helper
+        const parseDetails = (data) => {
+            if (typeof data === 'string') {
+                try { return JSON.parse(data); } catch (e) { return []; }
+            }
+            return data || [];
+        };
+
+        const testDetails = parseDetails(patient.testdetails);
+        const chcDetails = parseDetails(patient.chctestdetails);
+        const combinedTests = [...testDetails, ...chcDetails];
+
+        doc.open();
+        doc.write(`
+            <html>
+                <head>
+                    <title>Bill - ${patient.employee_name}</title>
+                    <style>
+                        @page { 
+                            size: portrait; 
+                            margin: 10mm; 
+                        }
+                        body { 
+                            font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+                            margin: 0; 
+                            padding: 0; 
+                            color: #000; 
+                            font-size: 13px; 
+                        }
+                        
+                        /* Table layout trick for repeating header/footer with space */
+                        .report-header-space { height: 28mm; }
+                        .report-footer-space { height: 35mm; }
+                        
+                        .report-header {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 35mm;
+                        }
+                        .report-footer {
+                            position: fixed;
+                            bottom: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 35mm;
+                        }
+                        
+                        .header-img { width: 100%; height: auto; }
+                        .footer-img { width: 100%; height: auto; }
+
+                        .content-table { width: 100%; border-collapse: collapse; }
+                        
+                        .main-content { padding: 5mm 5mm; }
+                        
+                        .info-table { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
+                        .info-table td { padding: 4px 0; vertical-align: top; }
+                        .label { font-weight: bold; width: 100px; font-size: 12px; }
+                        .value { font-size: 12px; }
+
+                        .test-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        .test-table th { background: #f0f0f0; border: 1px solid #ccc; padding: 6px; font-size: 11px; text-align: left; }
+                        .test-table td { border: 1px solid #ccc; padding: 6px; font-size: 12px; }
+
+                        .financials { margin-top: 15px; border-top: 2px solid #000; padding-top: 5px; }
+                        
+                        .signature-section { margin-top: 25px; display: flex; justify-content: space-between; }
+                        .sign-box { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 4px; font-weight: bold; font-size: 11px; }
+
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <!-- Fixed Header and Footer -->
+                    <div class="report-header">
+                        <img src="${HeaderImg}" class="header-img" />
+                    </div>
+                    <div class="report-footer">
+                        <img src="${FooterImg}" class="footer-img" />
+                    </div>
+
+                    <!-- Main Structure -->
+                    <table class="content-table">
+                        <thead>
+                            <tr><td><div class="report-header-space"></div></td></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="main-content">
+                                        <table class="info-table">
+                                            <tr>
+                                                <td class="label">Name:</td>
+                                                <td class="value">${patient.employee_name}</td>
+                                                <td class="label">Age/Gender:</td>
+                                                <td class="value">${patient.age} / ${patient.gender}</td>
+                                                <td class="label">Department:</td>
+                                                <td class="value">${patient.department}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="label">Employee ID:</td>
+                                                <td class="value">${patient.employee_id}</td>
+                                                <td class="label">Date:</td>
+                                                <td class="value" colspan="3">${patient.date ? new Date(patient.date).toLocaleDateString() : "-"}</td>
+                                            </tr>
+                                        </table>
+
+                                        <div style="font-weight: bold; margin-top: 15px;">INVESTIGATION DETAILS :</div>
+                                        <table class="test-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px;">S.No</th>
+                                                    <th>Test Name</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${combinedTests.length > 0 ? combinedTests.map((t, idx) => `
+                                                    <tr>
+                                                        <td style="text-align: center;">${idx + 1}</td>
+                                                        <td>${t.testname || t.test_name || "Unknown"}</td>
+                                                    
+                                                    </tr>
+                                                `).join('') : '<tr><td colspan="3" style="text-align: center;">No tests added</td></tr>'}
+                                            </tbody>
+                                        </table>
+
+                                        <div class="financials" style="font-size: 10px; border-top: 1px solid #000; margin-top: 10px; padding-top: 5px;">
+                                            <table style="width: 100%;">
+                                                <tr>
+                                                    <td style=" width: 85px; white-space: nowrap;">Net Amount:</td>
+                                                    <td style=" width: 100px;">₹${patient.netAmount}</td>
+                                                    <td style=" width: 100px; padding-left: 20px; white-space: nowrap;">Payment Mode:</td>
+                                                    <td style="white-space: nowrap;">${patient.paymentMode}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+
+                                        <div class="signature-section">
+            
+                                            <div class="sign-box">AUTHORISED SIGNATORY</div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr><td><div class="report-footer-space"></div></td></tr>
+                        </tfoot>
+                    </table>
+                </body>
+            </html>
+        `);
+        doc.close();
+        doc.close();
+
+        iframe.contentWindow.onload = () => {
+            // Need to wait for images to load before printing
+            setTimeout(() => {
+                iframe.contentWindow.print();
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 1000);
+            }, 500);
+        };
     };
 
     const handleDownload = () => {
@@ -643,9 +841,14 @@ export default function OffsitePatients() {
                                         <Td>{b.paymentMode}</Td>
                                         <Td>{b.date ? new Date(b.date).toLocaleDateString() : "-"}</Td>
                                         <Td>
-                                            <ViewBtn onClick={() => handleOpenModal(b)}>
-                                                <Eye size={14} /> View Tests
-                                            </ViewBtn>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <ViewBtn onClick={() => handleOpenModal(b)}>
+                                                    <Eye size={14} /> View Tests
+                                                </ViewBtn>
+                                                <ViewBtn onClick={() => handlePrintBill(b)} style={{ background: '#2D3748' }}>
+                                                    <Printer size={14} /> Print Bill
+                                                </ViewBtn>
+                                            </div>
                                         </Td>
                                     </tr>
                                 ))

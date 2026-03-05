@@ -324,6 +324,8 @@ const EmployeeRegistration = () => {
   const [holdScan, setHoldScan] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [packages, setPackages] = useState([]);
+  const [companySearch, setCompanySearch] = useState("");
+  const [packageSearch, setPackageSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
   const [companies, setCompanies] = useState([]);
@@ -348,7 +350,7 @@ const EmployeeRegistration = () => {
 
   // ✅ Validation function
   const validateForm = () => {
-    const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age", "package_id"];
+    const requiredFields = ["barcode", "employee_name", "department", "age", "package_id"];
 
 
     let newErrors = {};
@@ -749,21 +751,38 @@ const EmployeeRegistration = () => {
             </FormGroup>
             <FormGroup>
               <label>Company Name</label>
+              <StyledInput
+                type="text"
+                placeholder="🔍 Search company..."
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+                style={{ marginBottom: '5px' }}
+              />
               <StyledSelect
                 name="company_name"
                 value={formData.company_id}
                 onChange={handleCompanyChange}
               >
                 <option value="">Select Company</option>
-                {companies.map((company) => (
-                  <option key={company.company_id} value={company.company_id}>
-                    {company.company_name}
-                  </option>
-                ))}
+                {companies
+                  .filter(c => c.company_name.toLowerCase().includes(companySearch.toLowerCase()) || c.company_id.toLowerCase().includes(companySearch.toLowerCase()))
+                  .map((company) => (
+                    <option key={company.company_id} value={company.company_id}>
+                      {company.company_name}
+                    </option>
+                  ))}
               </StyledSelect>
             </FormGroup>
             <FormGroup>
               <label>Package</label>
+              <StyledInput
+                type="text"
+                placeholder="🔍 Search package..."
+                value={packageSearch}
+                onChange={(e) => setPackageSearch(e.target.value)}
+                style={{ marginBottom: '5px' }}
+                disabled={packages.length === 0}
+              />
               <StyledSelect
                 name="package_id"
                 value={formData.package_id}
@@ -775,11 +794,13 @@ const EmployeeRegistration = () => {
                 <option value="">
                   {formData.company_id ? "Select Package" : "Select Company First"}
                 </option>
-                {packages.map((pkg) => (
-                  <option key={pkg._id} value={pkg._id}>
-                    {pkg.package_name}
-                  </option>
-                ))}
+                {packages
+                  .filter(p => p.package_name.toLowerCase().includes(packageSearch.toLowerCase()))
+                  .map((pkg) => (
+                    <option key={pkg._id} value={pkg._id}>
+                      {pkg.package_name}
+                    </option>
+                  ))}
               </StyledSelect>
             </FormGroup>
             <FormGroup>

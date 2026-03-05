@@ -10,7 +10,6 @@ import Sidebar from "./Components/Sidebar";
 import styled from "styled-components";
 import Investigation from "./Components/Investigation";
 import RegisteredEmployees from "./Components/RegisteredEmployees";
-import Ophthalmology from "./Components/Ophthalmology";
 import DoctorApprovalInvestigations from "./Components/DoctorApprovalInvestigations";
 import DoctorApprovalOphthalmology from "./Components/DoctorApprovalOphthalmology";
 import Dashboard from "./Components/Dashboard";
@@ -47,7 +46,6 @@ function AppInner() {
           <Route path="/BatchGeneration" element={<BatchGeneration />} />
           <Route path="/Investigation" element={<Investigation />} />
           <Route path="/RegisteredEmployees" element={<RegisteredEmployees />} />
-          <Route path="/OphthalmologyForm" element={<Ophthalmology />} />
           <Route path="/DoctorApprovalInvestigations" element={<DoctorApprovalInvestigations />} />
           <Route path="/DoctorApprovalOphthalmology" element={<DoctorApprovalOphthalmology />} />
           <Route path="/Dashboard" element={<Dashboard />} />
