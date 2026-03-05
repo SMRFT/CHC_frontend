@@ -427,16 +427,26 @@ const SampleCollection = () => {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split("T")[0],
-    company_id: "CHC002", // Added company_id to filters
+    from_date: new Date().toISOString().split("T")[0],
+    to_date: new Date().toISOString().split("T")[0],
+    company_id: "",
     employee_id: "",
     barcode: "",
   })
   const [testSelections, setTestSelections] = useState({})
   const [testStatuses, setTestStatuses] = useState({})
   const [saving, setSaving] = useState(false)
+  const [companies, setCompanies] = useState([])
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
+
+  // Fetch companies for dropdown
+  useEffect(() => {
+    fetch(`${Labbaseurl}companies/`)
+      .then((r) => r.json())
+      .then((data) => setCompanies(Array.isArray(data) ? data : []))
+      .catch(console.error)
+  }, [Labbaseurl])
 
   // Get logged in user ID from localStorage
   const getLoggedInUserId = () => {
@@ -450,14 +460,15 @@ const SampleCollection = () => {
 
     // Require company_id for fetching patients
     if (!filters.company_id) {
-      setError("Company ID is required")
+      setError("Please select a company to search patients.")
       setLoading(false)
       return
     }
 
     try {
       const queryParams = new URLSearchParams()
-      queryParams.append("date", filters.date)
+      queryParams.append("from_date", filters.from_date)
+      queryParams.append("to_date", filters.to_date)
       queryParams.append("company_id", filters.company_id) // Always include company_id
       if (filters.employee_id) queryParams.append("employee_id", filters.employee_id)
       if (filters.barcode) queryParams.append("barcode", filters.barcode)
@@ -521,7 +532,8 @@ const SampleCollection = () => {
     try {
       const queryParams = new URLSearchParams()
       queryParams.append("barcode", patient.barcode)
-      queryParams.append("date", filters.date)
+      queryParams.append("from_date", filters.from_date)
+      queryParams.append("to_date", filters.to_date)
       queryParams.append("company_id", filters.company_id) // Include company_id
       queryParams.append("samplestatus", "Collected") // Only get Collected samples
 
@@ -668,7 +680,9 @@ const SampleCollection = () => {
         company_id: filters.company_id, // Include company_id
         testdetails: formattedTestDetails,
         collected_by: loggedInUserId,
-        date: filters.date,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+        date: filters.from_date, // Keep for backward compatibility if needed
       }
 
       const response = await fetch(`${Labbaseurl}samples/`, {
@@ -697,9 +711,10 @@ const SampleCollection = () => {
     }
   }
 
-  useEffect(() => {
-    fetchPatients()
-  }, [])
+  // Removed auto-fetch on mount to prevent 400 errors and improve UX
+  // useEffect(() => {
+  //   fetchPatients()
+  // }, [])
 
   const hasSelectedTests =
     Object.values(testSelections).some((selected) => selected) ||
@@ -717,25 +732,39 @@ const SampleCollection = () => {
         <SectionTitle>Search Parameters</SectionTitle>
         <FilterSection>
           <FilterGroup>
-            <Label htmlFor="date">Collection Date</Label>
+            <Label htmlFor="from_date">From Date</Label>
             <Input
-              id="date"
+              id="from_date"
               type="date"
-              value={filters.date}
-              onChange={(e) => handleFilterChange("date", e.target.value)}
+              value={filters.from_date}
+              onChange={(e) => handleFilterChange("from_date", e.target.value)}
             />
           </FilterGroup>
-          {/* Added Company ID field as required */}
           <FilterGroup>
-            <Label htmlFor="company_id">Company ID *</Label>
+            <Label htmlFor="to_date">To Date</Label>
             <Input
+              id="to_date"
+              type="date"
+              value={filters.to_date}
+              onChange={(e) => handleFilterChange("to_date", e.target.value)}
+            />
+          </FilterGroup>
+          {/* Company dropdown */}
+          <FilterGroup>
+            <Label htmlFor="company_id">Company *</Label>
+            <Select
               id="company_id"
-              type="text"
               value={filters.company_id}
               onChange={(e) => handleFilterChange("company_id", e.target.value)}
-              placeholder="Enter Company ID"
               required
-            />
+            >
+              <option value="">-- Select Company --</option>
+              {companies.map((c) => (
+                <option key={c.company_id} value={c.company_id}>
+                  {c.company_name} ({c.company_id})
+                </option>
+              ))}
+            </Select>
           </FilterGroup>
           <FilterGroup>
             <Label htmlFor="employee_id">Employee ID</Label>

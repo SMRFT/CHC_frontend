@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FaBarcode } from "react-icons/fa";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -252,10 +252,26 @@ const AlertBox = styled.div`
 // ---- Scanner Component ----
 const Scanner = ({ onDetected }) => {
   useEffect(() => {
-    // Initialize Html5QrcodeScanner
+    // Initialize Html5QrcodeScanner with optimized settings
     const scanner = new Html5QrcodeScanner(
       "reader",
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      {
+        fps: 20, // Increased FPS for faster detection
+        qrbox: { width: 350, height: 150 }, // Adjusted for 1D barcodes
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true, // Helpful in low light
+        useBarCodeDetectorIfSupported: true, // Use native API if available
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ]
+      },
       /* verbose= */ false
     );
 
@@ -283,6 +299,7 @@ const Scanner = ({ onDetected }) => {
 // ---- Main Component ----
 const EmployeeRegistration = () => {
   const [formData, setFormData] = useState({
+    registration_mode: "Onsite", // "Onsite" or "Offsite"
     barcode: "",
     title: "Ms",
     first_name: "",
@@ -291,28 +308,51 @@ const EmployeeRegistration = () => {
     employee_id: "",
     gender: "Female",
     age: "",
-    company_name: "ACSEN TEX P LTD",
+    company_name: "",
     department: "",
     email: "",
     mobile: "",
     registration_datetime: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-    payment_mode: "Credit",
+    payment_type: "Credit", // "Cash" or "Credit"
+    cash_mode: "Cash",      // "Cash", "UPI", or "Card"
+    transaction_id: "",
+    company_id: "",
+    package_id: "",
   });
 
   const [scanning, setScanning] = useState(false);
   const [holdScan, setHoldScan] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [packages, setPackages] = useState([]);
-  const [lastScanned, setLastScanned] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [packageSearch, setPackageSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
-  const [errors, setErrors] = useState({});
+  const [companies, setCompanies] = useState([]);
+
+  // Fetch Companies
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await fetch(`${Labbaseurl}companies/`);
+        const data = await res.json();
+        // The backend returns a list directly based on the view code
+        setCompanies(data);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+        toast.error("Failed to load companies");
+      }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
 
 
 
   // ✅ Validation function
   const validateForm = () => {
-    const requiredFields = ["barcode", "employee_name", "employee_id", "department", "age"];
+    const requiredFields = ["barcode", "employee_name", "department", "age", "package_id"];
+
+
     let newErrors = {};
     let valid = true;
 
@@ -324,7 +364,6 @@ const EmployeeRegistration = () => {
       }
     });
 
-    setErrors(newErrors);
     return valid;
   };
 
@@ -360,19 +399,71 @@ const EmployeeRegistration = () => {
     setFormData((prev) => ({ ...prev, gender }));
   }, [formData.title]);
 
-  // Fetch packages
-  useEffect(() => {
-    const fetchPackages = async () => {
-      try {
-        const res = await fetch(`${Labbaseurl}get_packages/`);
-        const data = await res.json();
-        if (data.status === "success") setPackages(data.data);
-      } catch (err) {
-        console.error("Error fetching packages:", err);
+  // Fetch next offsite barcode when mode is switched to Offsite
+  const fetchNextBarcode = async () => {
+    try {
+      const res = await fetch(`${Labbaseurl}get_next_offsite_barcode/`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setFormData(prev => ({ ...prev, barcode: data.barcode }));
       }
-    };
-    fetchPackages();
-  }, [Labbaseurl]);
+    } catch (err) {
+      console.error("Error fetching next barcode:", err);
+      toast.error("Failed to fetch auto-barcode");
+    }
+  };
+
+  const handleModeChange = (mode) => {
+    if (mode === "Offsite") {
+      fetchNextBarcode();
+    } else {
+      setFormData(prev => ({ ...prev, barcode: "" }));
+    }
+    setFormData(prev => ({ ...prev, registration_mode: mode }));
+  };
+
+  // Fetch packages based on company_id
+  const fetchPackages = async (companyId) => {
+    if (!companyId) {
+      setPackages([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${Labbaseurl}get_packages/?company_id=${companyId}`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setPackages(data.data);
+      } else {
+        setPackages([]);
+      }
+    } catch (err) {
+      console.error("Error fetching packages:", err);
+      toast.error("Error fetching packages");
+    }
+  };
+
+  const handleCompanyChange = (e) => {
+    const selectedCompanyId = e.target.value;
+    const selectedCompany = companies.find(c => c.company_id === selectedCompanyId);
+
+    if (selectedCompany) {
+      setFormData(prev => ({
+        ...prev,
+        company_id: selectedCompanyId,
+        company_name: selectedCompany.company_name,
+        package_id: "" // Reset package when company changes
+      }));
+      fetchPackages(selectedCompanyId);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        company_id: "",
+        company_name: "",
+        package_id: ""
+      }));
+      setPackages([]);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -387,26 +478,34 @@ const EmployeeRegistration = () => {
 
     setIsSubmitting(true);
 
+    const selectedPackage = packages.find(pkg => pkg._id === formData.package_id);
+
+    // Safety check (validation should have caught this, but just in case)
+    if (!selectedPackage) {
+      toast.error("Please select a valid package");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       employee_id: formData.employee_id,
       barcode: formData.barcode,
       company_name: formData.company_name,
-      testdetails: packages.flatMap((pkg) =>
-        pkg.investigations.map((inv) => ({
-          testname: inv.testname,
-          test_id: inv.test_id,
-        }))
-      ),
-      totalAmount: packages.reduce(
-        (sum, pkg) => sum + (pkg.totalAmount || 0),
-        0
-      ),
+      company_id: formData.company_id,
+      testdetails: selectedPackage.investigations.map((inv) => ({
+        testname: inv.testname,
+        test_id: inv.test_id,
+      })),
+      totalAmount: selectedPackage.totalAmount || 0,
       employee_name: formData.employee_name,
       gender: formData.gender,
       age: formData.age,
       department: formData.department,
       email: formData.email,
       mobile: formData.mobile,
+      payment_mode: formData.payment_type === "Credit" ? "Credit" : formData.cash_mode,
+      transaction_id: formData.transaction_id || "",
+      registration_mode: formData.registration_mode,
     };
 
     try {
@@ -419,9 +518,11 @@ const EmployeeRegistration = () => {
       const data = await res.json();
 
       if (res.ok && data.status === "success") {
-        toast.success("Employee registered successfully!");
-        // ✅ Clear form
-        setFormData({
+        toast.success(`Employee registered successfully! (${formData.registration_mode} Mode)`);
+        // ✅ Clear personal/employee fields only — keep company & package
+        setFormData((prev) => ({
+          ...prev,
+          registration_mode: "Onsite",
           barcode: "",
           title: "Ms",
           first_name: "",
@@ -430,7 +531,6 @@ const EmployeeRegistration = () => {
           employee_id: "",
           gender: "Female",
           age: "",
-          company_name: "JS AUTO CAST FOUNDRY INDIA PVT LTD,",
           department: "",
           email: "",
           mobile: "",
@@ -439,8 +539,11 @@ const EmployeeRegistration = () => {
           )
             .toISOString()
             .slice(0, 16),
-          payment_mode: "Credit",
-        });
+          payment_type: "Credit",
+          cash_mode: "Cash",
+          transaction_id: "",
+          // company_id, company_name, package_id are preserved from prev
+        }));
       } else {
         toast.error(data.message || "Registration failed");
       }
@@ -477,19 +580,69 @@ const EmployeeRegistration = () => {
       )}
 
       <FormContainer onSubmit={handleSubmit}>
-        <ScannerContainer>
-          <ScanButton type="button" onClick={() => setScanning(true)}>
-            <FaBarcode /> Scan Barcode
-          </ScanButton>
-          <StyledInput
-            id="barcodeInput"
-            type="text"
-            name="barcode"
-            value={formData.barcode}
-            onChange={handleChange}
-            placeholder="Enter or scan barcode"
-          />
-        </ScannerContainer>
+        <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center", background: "#f3f4f6", padding: "1rem", borderRadius: "10px" }}>
+          <FormGroup>
+            <label style={{ marginBottom: "0.5rem" }}>Registration Mode</label>
+            <div style={{ display: "flex", gap: "1.5rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "600" }}>
+                <input
+                  type="radio"
+                  name="registration_mode"
+                  value="Onsite"
+                  checked={formData.registration_mode === "Onsite"}
+                  onChange={() => handleModeChange("Onsite")}
+                  style={{ width: "18px", height: "18px" }}
+                />
+                Onsite
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "600" }}>
+                <input
+                  type="radio"
+                  name="registration_mode"
+                  value="Offsite"
+                  checked={formData.registration_mode === "Offsite"}
+                  onChange={() => handleModeChange("Offsite")}
+                  style={{ width: "18px", height: "18px" }}
+                />
+                Offsite
+              </label>
+            </div>
+          </FormGroup>
+
+          <div style={{ flex: "1", minWidth: "300px" }}>
+            <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: "600", color: "#374151", fontSize: "0.875rem" }}>
+              Barcode {formData.registration_mode === "Offsite" && "(Auto-generated)"}
+            </label>
+            <ScannerContainer style={{ marginBottom: 0 }}>
+              <ScanButton
+                type="button"
+                onClick={() => setScanning(true)}
+                disabled={formData.registration_mode === "Offsite"}
+                style={{
+                  opacity: formData.registration_mode === "Offsite" ? 0.5 : 1,
+                  background: formData.registration_mode === "Offsite" ? "#9ca3af" : "#4f46e5"
+                }}
+              >
+                <FaBarcode /> Scan Barcode
+              </ScanButton>
+              <StyledInput
+                id="barcodeInput"
+                type="text"
+                name="barcode"
+                value={formData.barcode}
+                onChange={handleChange}
+                placeholder={formData.registration_mode === "Offsite" ? "Fetching barcode..." : "Enter or scan barcode"}
+                disabled={formData.registration_mode === "Offsite"}
+                style={{
+                  background: formData.registration_mode === "Offsite" ? "#e5e7eb" : "white",
+                  borderColor: formData.registration_mode === "Offsite" ? "#d1d5db" : "#3F72AF",
+                  fontWeight: formData.registration_mode === "Offsite" ? "bold" : "normal",
+                  color: formData.registration_mode === "Offsite" ? "#112D4E" : "inherit"
+                }}
+              />
+            </ScannerContainer>
+          </div>
+        </div>
 
         {/* Personal Details */}
         <Card>
@@ -567,9 +720,9 @@ const EmployeeRegistration = () => {
           </FormRow>
         </Card>
 
-        {/* Company Details */}
+        {/* Company & Package Details */}
         <Card>
-          <CardHeader>Company Details</CardHeader>
+          <CardHeader>Company & Package Details</CardHeader>
           <FormRow>
             <FormGroup>
               <label>Employee ID</label>
@@ -598,48 +751,109 @@ const EmployeeRegistration = () => {
             </FormGroup>
             <FormGroup>
               <label>Company Name</label>
-              <StyledInput value={formData.company_name} readOnly />
-            </FormGroup>
-          </FormRow>
-        </Card>
-
-        {/* Registration Details */}
-        <Card>
-          <CardHeader>Registration Details</CardHeader>
-          <FormRow>
-            <FormGroup>
-              <label>Registration Date & Time</label>
               <StyledInput
-                type="datetime-local"
-                value={formData.registration_datetime}
-                readOnly
+                type="text"
+                placeholder="🔍 Search company..."
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+                style={{ marginBottom: '5px' }}
               />
+              <StyledSelect
+                name="company_name"
+                value={formData.company_id}
+                onChange={handleCompanyChange}
+              >
+                <option value="">Select Company</option>
+                {companies
+                  .filter(c => c.company_name.toLowerCase().includes(companySearch.toLowerCase()) || c.company_id.toLowerCase().includes(companySearch.toLowerCase()))
+                  .map((company) => (
+                    <option key={company.company_id} value={company.company_id}>
+                      {company.company_name}
+                    </option>
+                  ))}
+              </StyledSelect>
+            </FormGroup>
+            <FormGroup>
+              <label>Package</label>
+              <StyledInput
+                type="text"
+                placeholder="🔍 Search package..."
+                value={packageSearch}
+                onChange={(e) => setPackageSearch(e.target.value)}
+                style={{ marginBottom: '5px' }}
+                disabled={packages.length === 0}
+              />
+              <StyledSelect
+                name="package_id"
+                value={formData.package_id}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, package_id: e.target.value }))
+                }
+                disabled={packages.length === 0}
+              >
+                <option value="">
+                  {formData.company_id ? "Select Package" : "Select Company First"}
+                </option>
+                {packages
+                  .filter(p => p.package_name.toLowerCase().includes(packageSearch.toLowerCase()))
+                  .map((pkg) => (
+                    <option key={pkg._id} value={pkg._id}>
+                      {pkg.package_name}
+                    </option>
+                  ))}
+              </StyledSelect>
             </FormGroup>
             <FormGroup>
               <label>Payment Mode</label>
-              <StyledInput value={formData.payment_mode} readOnly />
+              <StyledSelect
+                name="payment_type"
+                value={formData.payment_type}
+                onChange={handleChange}
+              >
+                <option value="Credit">Credit</option>
+                <option value="Cash">Cash</option>
+              </StyledSelect>
             </FormGroup>
+
+            {formData.payment_type === "Cash" && (
+              <>
+                <FormGroup>
+                  <label>Cash Mode</label>
+                  <StyledSelect
+                    name="cash_mode"
+                    value={formData.cash_mode}
+                    onChange={handleChange}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Card">Card</option>
+                  </StyledSelect>
+                </FormGroup>
+
+                {(formData.cash_mode === "UPI" || formData.cash_mode === "Card") && (
+                  <FormGroup>
+                    <label>Transaction ID (Optional)</label>
+                    <StyledInput
+                      name="transaction_id"
+                      value={formData.transaction_id}
+                      onChange={handleChange}
+                      placeholder="Enter transaction ID"
+                    />
+                  </FormGroup>
+                )}
+              </>
+            )}
           </FormRow>
 
-          {/* ✅ Updated Package Table */}
-          <CardHeader>Available Packages</CardHeader>
-          {packages.length > 0 ? (
-            packages.map((pkg) => (
-              <div key={pkg._id} style={{ marginBottom: "2rem" }}>
-                {/* Package Name */}
-                <h3
-                  style={{
-                    textAlign: "center",
-                    margin: "1rem 0",
-                    color: "#1f2937",
-                    fontWeight: "700",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  {pkg.package_name}
+          {/* Display Selected Package Investigations */}
+          {formData.package_id && (() => {
+            const selectedPkg = packages.find(pkg => pkg._id === formData.package_id);
+            if (!selectedPkg) return null;
+            return (
+              <div style={{ marginTop: "1.5rem" }}>
+                <h3 style={{ textAlign: "center", margin: "1rem 0", color: "#1f2937", fontWeight: "700", fontSize: "1.1rem" }}>
+                  {selectedPkg.package_name}
                 </h3>
-
-                {/* Investigations Table - Reduced Width */}
                 <div style={{ maxWidth: "600px", margin: "0 auto", overflowX: "auto" }}>
                   <StyledTable style={{ width: "100%", minWidth: "300px" }}>
                     <thead>
@@ -649,20 +863,14 @@ const EmployeeRegistration = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pkg.investigations.map((inv, index) => (
+                      {selectedPkg.investigations.map((inv, index) => (
                         <tr key={index}>
-                          <TableCell style={{ textAlign: "center", width: "80px" }}>
-                            {index + 1}
-                          </TableCell>
-                          <TableCell style={{ textAlign: "left" }}>
-                            {inv.testname}
-                          </TableCell>
+                          <TableCell style={{ textAlign: "center", width: "80px" }}>{index + 1}</TableCell>
+                          <TableCell style={{ textAlign: "left" }}>{inv.testname}</TableCell>
                         </tr>
                       ))}
                     </tbody>
                   </StyledTable>
-
-                  {/* Total Amount Below Table */}
                   <div
                     style={{
                       textAlign: "center",
@@ -676,16 +884,17 @@ const EmployeeRegistration = () => {
                       color: "#1f2937"
                     }}
                   >
-                    Total Amount: ₹{pkg.totalAmount}
+                    Total Amount: ₹{selectedPkg.totalAmount}
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <p style={{ textAlign: "center", color: "#6b7280" }}>
-              No packages available
-            </p>
-          )}
+            );
+          })()}
+        </Card>
+
+        {/* Payment Details */}
+        <Card>
+
         </Card>
 
         <ButtonGroup>

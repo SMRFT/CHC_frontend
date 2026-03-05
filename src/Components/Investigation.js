@@ -283,20 +283,28 @@ const UploadedChip = styled.span`
 `
 
 const SmallNote = styled.div`
-  font-size: 12px;
-  color: #4a5568;
-  margin-top: 6px;
+  font-size: 11px;
+  color: #718096;
+  margin-top: 4px;
   word-break: break-all;
 `
-const DEFAULT_XRAY_REPORT = `The cardiac size and configuration are within normal limits.
-The lung fields are clear. The broncho-vascular markings are normal.
-The costo- and cardio-phrenic angles are free.
-Both domes of the diaphragm are normal.
-No abnormality is seen in the bones and soft tissues of the chest wall.
-The visualized abdominal structures appear normal.
-No significant finding in the lungs or mediastinum.`;
 
-const DEFAULT_XRAY_NOTES = `No significant finding in the lungs or mediastinum.`;
+const ViewLink = styled.a`
+  font-size: 12px;
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 10px;
+  &:hover { text-decoration: underline; color: #1d4ed8; }
+`
+
+const DEFAULT_VITALS = {
+  height_cm: "",
+  weight_kg: "",
+  bmi: "",
+  blood_pressure: "",
+  spo2: "",
+}
 
 export default function Investigation() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
@@ -308,24 +316,11 @@ export default function Investigation() {
     barcode: "",
     vitals: { height_cm: "", weight_kg: "", bmi: "", blood_pressure: "", spo2: "" },
     patient_history: "",
-    xray_notes: "",
-    xray_report: "",
-    ecg_notes: "",
-    pft_notes: "",
-    audiometry_notes: "",
+    test_results: [], // Dynamic array of test objects
   })
 
   const [employees, setEmployees] = useState([])
-  const [files, setFiles] = useState({ xrayfilm: [], ecg: [], pft: [], audiometric: [] })
-
-  // Tracks already-uploaded files for selected employee
-  const [existingFiles, setExistingFiles] = useState({
-    xrayfilm: null,
-    ecg: null,
-    pft: null,
-    audiometric: null,
-
-  })
+  const [files, setFiles] = useState({}) // Indices mapping to arrays
 
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -333,20 +328,12 @@ export default function Investigation() {
   const [toasts, setToasts] = useState([])
 
   // Date range state
-  const [startDate, setStartDate] = useState(null) // from
-  const [endDate, setEndDate] = useState(null) // to
+  const [startDate, setStartDate] = useState(new Date()) // from
+  const [endDate, setEndDate] = useState(new Date()) // to
 
   // Search state + debounce
   const [searchInput, setSearchInput] = useState("") // raw input
   const [debouncedSearch, setDebouncedSearch] = useState("") // debounced value
-
-  // File status filters
-  const [fileFilters, setFileFilters] = useState({
-    xrayfilm: "any",
-    ecg: "any",
-    pft: "any",
-    audiometric: "any",
-  })
 
   // Overall status filter
   const [statusFilter, setStatusFilter] = useState("any")
@@ -360,15 +347,30 @@ export default function Investigation() {
     }, 4000)
   }
 
-  // Reusable fetch + merge
-  const refreshData = async () => {
-    const empRes = await axios.get(`${Labbaseurl}get_all_employees/`)
+  // Reusable fetch + merge (Backend filtering)
+  const refreshData = async (fDate, tDate) => {
+    let empUrl = `${Labbaseurl}get_all_employees/`
+    let invUrl = `${Labbaseurl}get_investigations/`
+
+    if (fDate) {
+      const fd = fDate.toISOString().split("T")[0]
+      empUrl += `?from_date=${fd}`
+      invUrl += `?from_date=${fd}`
+      if (tDate) {
+        const td = tDate.toISOString().split("T")[0]
+        empUrl += `&to_date=${td}`
+        invUrl += `&to_date=${td}`
+      }
+    }
+
+    const empRes = await axios.get(empUrl)
     const employeesData = empRes.data || []
-    const invRes = await axios.get(`${Labbaseurl}get_investigations/`)
+    const invRes = await axios.get(invUrl)
     const investigationsData = invRes.data || []
 
     const merged = employeesData.map((emp) => {
-      const inv = investigationsData.find((i) => i.employee_id === emp.employee_id)
+      // Improved matching: use barcode if available, else fallback to employee_id
+      const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
       return inv ? { ...emp, ...inv } : emp
     })
 
@@ -376,18 +378,18 @@ export default function Investigation() {
     return merged
   }
 
-  // Fetch employees & investigations on mount
+  // Fetch employees & investigations on mount or date change
   useEffect(() => {
     ; (async () => {
       try {
-        const merged = await refreshData()
+        const merged = await refreshData(startDate, endDate)
         if (merged.length > 0) showToast(`${merged.length} employees loaded successfully`, "success")
       } catch (err) {
         console.error(err)
         showToast("Failed to load employees or investigations", "error")
       }
     })()
-  }, [Labbaseurl])
+  }, [Labbaseurl, startDate, endDate])
 
   // Debounce search input
   useEffect(() => {
@@ -409,9 +411,6 @@ export default function Investigation() {
 
   // Compose filters: search + date range + file filters (AND) + overall status filter
   const filteredEmployees = useMemo(() => {
-    const s = toMidnight(startDate)
-    const e = toMidnight(endDate)
-
     return employees.filter((emp) => {
       // Search filter
       const q = debouncedSearch
@@ -422,74 +421,76 @@ export default function Investigation() {
         (emp.employee_name && String(emp.employee_name).toLowerCase().includes(q))
       if (!matchesSearch) return false
 
-      // Date range inclusive on created_date if present
-      if (s || e) {
-        const created = emp.created_date ? new Date(emp.created_date) : null
-        if (created) created.setHours(0, 0, 0, 0)
-        const inRange =
-          (!s && !e) ||
-          (s && !e && created && created.getTime() >= s.getTime()) ||
-          (!s && e && created && created.getTime() <= e.getTime()) ||
-          (s && e && created && created.getTime() >= s.getTime() && created.getTime() <= e.getTime())
-        if (!inRange) return false
-      }
+      // Overall status filter (check if ALL tests have files)
+      const testResults = emp.test_results
+      const isArray = Array.isArray(testResults)
+      const overallApproved = isArray && testResults.length > 0 && testResults.every(t => (t.files || []).length > 0)
 
-      // File filters (AND)
-      const filesState = {
-        xrayfilm: hasValue(emp?.xrayfilm_file),
-        ecg: hasValue(emp?.ecg_file),
-        pft: hasValue(emp?.pft_file),
-        audiometric: hasValue(emp?.audiometric_file),
-      }
-
-      for (const key of Object.keys(fileFilters)) {
-        const f = fileFilters[key]
-        if (f === "any") continue
-        if (f === "uploaded" && !filesState[key]) return false
-        if (f === "not_uploaded" && filesState[key]) return false
-      }
-
-      // Overall status filter (approved if ALL files uploaded)
-      const overallApproved = filesState.xrayfilm && filesState.ecg && filesState.pft && filesState.audiometric
       if (statusFilter === "approved" && !overallApproved) return false
       if (statusFilter === "pending" && overallApproved) return false
 
       return true
     })
-  }, [employees, debouncedSearch, startDate, endDate, fileFilters, statusFilter])
+  }, [employees, debouncedSearch, startDate, endDate, statusFilter])
 
-  const handleSelectEmployee = (employee_id) => {
-    const selectedEmployee = employees.find((emp) => emp.employee_id === employee_id)
+  const handleSelectEmployee = (empIdentifier) => {
+    // Lookup by either employee_id or barcode
+    const selectedEmployee = employees.find((emp) =>
+      (emp.employee_id && emp.employee_id === empIdentifier) ||
+      (emp.barcode && emp.barcode === empIdentifier)
+    )
     if (selectedEmployee) {
+      // Helper to parse JSON if string, or return as is
+      const parseJson = (val, defaultVal = {}) => {
+        if (typeof val === "string") {
+          try {
+            return JSON.parse(val)
+          } catch (e) {
+            return defaultVal
+          }
+        }
+        return val || defaultVal
+      }
+
+      // Build the test_results array for the form
+      let savedTests = parseJson(selectedEmployee.test_results, [])
+      if (!Array.isArray(savedTests)) savedTests = []
+
+      const billableTests = selectedEmployee.billing_testdetails || []
+
+      // Combine: for each billable test, use saved results if available
+      // Filter to only include CHCT tests as requested
+      let activeTests = billableTests
+        .filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+        .map((bt) => {
+          const saved = savedTests.find((st) => String(st.test_id) === String(bt.test_id))
+          return {
+            test_id: bt.test_id,
+            test_name: bt.test_name || bt.testname,
+            is_fileuploaded: bt.is_fileuploaded,
+            is_notes: bt.is_notes,
+            is_report: bt.is_report,
+            is_active: bt.is_active,
+            results: saved
+              ? saved.results
+              : { report: bt.report || "" }, // Use master report template if new
+            files: saved ? saved.files : [],
+            notes: saved
+              ? saved.notes
+              : (bt.notes || "") // Use master note template if new
+          }
+        })
+
       setForm((prev) => ({
         ...prev,
         employee_id: selectedEmployee.employee_id,
         age: selectedEmployee.age,
         gender: selectedEmployee.gender,
         barcode: selectedEmployee.barcode,
-        vitals:
-          typeof selectedEmployee.vitals === "string"
-            ? JSON.parse(selectedEmployee.vitals)
-            : selectedEmployee.vitals || prev.vitals,
+        vitals: parseJson(selectedEmployee.vitals),
         patient_history: selectedEmployee.patient_history || "",
-        xray_notes: selectedEmployee.xray_notes || DEFAULT_XRAY_NOTES,
-        xray_report: selectedEmployee.xray_report || DEFAULT_XRAY_REPORT,
-        ecg_notes: selectedEmployee.ecg_notes || "",
-        pft_notes: selectedEmployee.pft_notes || "",
-        audiometry_notes: selectedEmployee.audiometry_notes || "",
+        test_results: activeTests || []
       }))
-
-
-      // Populate existing file IDs
-      setExistingFiles({
-        xrayfilm: selectedEmployee.xrayfilm_file || null,
-        ecg: selectedEmployee.ecg_file || null,
-        pft: selectedEmployee.pft_file || null,
-        audiometric: selectedEmployee.audiometric_file || null,
-      })
-
-      // Clear local file selections
-      setFiles({ xrayfilm: [], ecg: [], pft: [], audiometric: [] })
     }
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -502,14 +503,11 @@ export default function Investigation() {
       age: "",
       gender: "",
       barcode: "",
-      vitals: { height_cm: "", weight_kg: "", bmi: "", blood_pressure: "", spo2: "" },
+      vitals: DEFAULT_VITALS,
       patient_history: "",
-      ecg_notes: "",
-      pft_notes: "",
-      audiometry_notes: "",
+      test_results: [],
     })
-    setExistingFiles({ xrayfilm: null, ecg: null, pft: null, audiometric: null })
-    setFiles({ xrayfilm: [], ecg: [], pft: [], audiometric: [] })
+    setFiles({})
   }
 
   const handleChange = (e) => {
@@ -525,6 +523,79 @@ export default function Investigation() {
   const handleFileChange = (e, key) => {
     const fileList = Array.from(e.target.files)
     setFiles((prev) => ({ ...prev, [key]: fileList }))
+  }
+
+  const handleVisualAcuityChange = (key, eye, value) => {
+    setForm(prev => ({
+      ...prev,
+      visual_acuity: {
+        ...prev.visual_acuity,
+        [key]: {
+          ...prev.visual_acuity[key],
+          [eye]: value
+        }
+      }
+    }))
+  }
+
+  const handleTestChange = (testIdx, field, value, isResult = false) => {
+    setForm(prev => {
+      const newResults = [...prev.test_results]
+      if (isResult) {
+        newResults[testIdx].results = { ...newResults[testIdx].results, ...value }
+      } else {
+        newResults[testIdx][field] = value
+      }
+      return { ...prev, test_results: newResults }
+    })
+  }
+
+  const handleTestFileChange = (e, testIdx) => {
+    const selectedFiles = Array.from(e.target.files)
+    if (selectedFiles.length === 0) return
+    setFiles(prev => {
+      const existing = prev[testIdx] || []
+      return {
+        ...prev,
+        [testIdx]: [...existing, ...selectedFiles]
+      }
+    })
+    e.target.value = null; // Reset so same files can be selected again
+  }
+
+  const handleRemoveSelectedFile = (testIdx, fileIdx) => {
+    setFiles(prev => {
+      const list = [...(prev[testIdx] || [])]
+      list.splice(fileIdx, 1)
+      const next = { ...prev, [testIdx]: list }
+      if (list.length === 0) delete next[testIdx]
+      return next
+    })
+  }
+
+  const handleDeleteFile = async (testIdx, fileId) => {
+    if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return
+
+    try {
+      const resp = await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
+        barcode: form.barcode,
+        test_id: form.test_results[testIdx].test_id,
+        file_id: fileId
+      })
+
+      if (resp.data.status === "success") {
+        showToast("File deleted successfully", "success")
+        // Update local state to remove the file ID
+        setForm(prev => {
+          const newTests = [...prev.test_results]
+          newTests[testIdx].files = newTests[testIdx].files.filter(fid => fid !== fileId)
+          return { ...prev, test_results: newTests }
+        })
+      }
+    } catch (err) {
+      console.error("Delete error:", err)
+      showToast(err.response?.data?.error || "Failed to delete file", "error")
+    }
   }
 
   // Auto-calc BMI
@@ -569,15 +640,10 @@ export default function Investigation() {
   }
 
   const mapEmployeeToCsvRow = (emp) => {
-    const status = (v) => (hasValue(v) ? "Uploaded" : "Pending")
-    const pendingList = [
-      !hasValue(emp?.xrayfilm_file) ? "xrayfilm" : null,
-      !hasValue(emp?.ecg_file) ? "ecg" : null,
-      !hasValue(emp?.pft_file) ? "pft" : null,
-      !hasValue(emp?.audiometric_file) ? "audiometric" : null,
-    ]
-      .filter(Boolean)
-      .join("|")
+    const results = emp.test_results || []
+
+    const overallStatus = results.length > 0 && results.every(t => (t.files || []).length > 0) ? "Complete" : "Pending"
+    const pendingTests = results.filter(t => (t.files || []).length === 0).map(t => t.test_name).join(", ")
 
     return {
       employee_id: emp.employee_id ?? "",
@@ -586,11 +652,8 @@ export default function Investigation() {
       gender: emp.gender ?? "",
       barcode: emp.barcode ?? "",
       created_date: emp.created_date ?? "",
-      xrayfilm_status: status(emp?.xrayfilm_file),
-      ecg_status: status(emp?.ecg_file),
-      pft_status: status(emp?.pft_file),
-      audiometric_status: status(emp?.audiometric_file),
-      pending_for: pendingList,
+      status: overallStatus,
+      pending_for: pendingTests,
     }
   }
 
@@ -603,10 +666,7 @@ export default function Investigation() {
       "gender",
       "barcode",
       "created_date",
-      "xrayfilm_status",
-      "ecg_status",
-      "pft_status",
-      "audiometric_status",
+      "status",
       "pending_for",
     ]
     const csv = toCsv(rows, headers)
@@ -616,11 +676,10 @@ export default function Investigation() {
   const exportPendingCsv = () => {
     const pendingRows = filteredEmployees
       .filter(
-        (emp) =>
-          !hasValue(emp?.xrayfilm_file) ||
-          !hasValue(emp?.ecg_file) ||
-          !hasValue(emp?.pft_file) ||
-          !hasValue(emp?.audiometric_file),
+        (emp) => {
+          const testResults = emp.test_results || [];
+          return testResults.some(t => (t.files || []).length === 0);
+        }
       )
       .map(mapEmployeeToCsvRow)
     const headers = [
@@ -630,10 +689,7 @@ export default function Investigation() {
       "gender",
       "barcode",
       "created_date",
-      "xrayfilm_status",
-      "ecg_status",
-      "pft_status",
-      "audiometric_status",
+      "status",
       "pending_for",
     ]
     const csv = toCsv(pendingRows, headers)
@@ -658,11 +714,12 @@ export default function Investigation() {
       fd.append("gender", form.gender)
       fd.append("barcode", form.barcode)
       fd.append("patient_history", form.patient_history)
-      fd.append("xray_notes", form.xray_notes || DEFAULT_XRAY_NOTES);
-      fd.append("xray_report", form.xray_report || DEFAULT_XRAY_REPORT);
-      fd.append("ecg_notes", form.ecg_notes)
-      fd.append("pft_notes", form.pft_notes)
-      fd.append("audiometry_notes", form.audiometry_notes)
+
+      const empData = employees.find(e =>
+        (e.barcode && e.barcode === form.barcode) ||
+        (e.employee_id && e.employee_id === form.employee_id)
+      );
+      fd.append("company_id", empData?.company_id || "CHC002")
 
       const vitalsToSend = {
         height_cm: form.vitals.height_cm || "",
@@ -673,11 +730,17 @@ export default function Investigation() {
       }
       fd.append("vitals", JSON.stringify(vitalsToSend))
 
-      // Append only new files; existing ones remain unchanged
-      if (files.xrayfilm.length > 0) fd.append("xrayfilm_file", files.xrayfilm[0])
-      if (files.ecg.length > 0) fd.append("ecg_file", files.ecg[0])
-      if (files.pft.length > 0) fd.append("pft_file", files.pft[0])
-      if (files.audiometric.length > 0) fd.append("audiometric_file", files.audiometric[0])
+      // Sending the dynamic test_results array
+      fd.append("test_results", JSON.stringify(form.test_results))
+
+      // Mapping files: we'll use keys like "file_{idx}"
+      Object.keys(files).forEach(testIdx => {
+        if (files[testIdx] && files[testIdx].length > 0) {
+          files[testIdx].forEach(file => {
+            fd.append(`file_${testIdx}`, file)
+          })
+        }
+      })
 
       await axios.post(`${Labbaseurl}save_investigation/`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -689,12 +752,11 @@ export default function Investigation() {
         },
       })
 
-      showToast("Investigation saved successfully!", "success")
+      showToast("Investigation results saved successfully!", "success")
       handleBackToList()
-      await refreshData()
+      await refreshData(startDate, endDate)
       setUploading(false)
       setProgress(0)
-      // Optionally refreshData();
     } catch (err) {
       console.error("Submit error:", err)
       showToast("Failed to save investigation. Please check your data.", "error")
@@ -730,7 +792,6 @@ export default function Investigation() {
                 placeholder="Barcode, Employee ID, Name"
               />
             </SearchWrap>
-
             <DPWrap>
               <span style={{ fontWeight: 700, color: "#4a5568" }}>From</span>
               <DatePicker
@@ -763,61 +824,12 @@ export default function Investigation() {
               />
             </DPWrap>
 
-            {/* File status filters */}
-            <SelectWrap>
-              <span style={{ fontWeight: 700, color: "#4a5568" }}>X-Ray Film</span>
-              <Select
-                value={fileFilters.xrayfilm}
-                onChange={(e) => setFileFilters((prev) => ({ ...prev, xrayfilm: e.target.value }))}
-              >
-                <option value="any">Any</option>
-                <option value="uploaded">Uploaded</option>
-                <option value="not_uploaded">Not uploaded</option>
-              </Select>
-            </SelectWrap>
-
-            <SelectWrap>
-              <span style={{ fontWeight: 700, color: "#4a5568" }}>ECG</span>
-              <Select
-                value={fileFilters.ecg}
-                onChange={(e) => setFileFilters((prev) => ({ ...prev, ecg: e.target.value }))}
-              >
-                <option value="any">Any</option>
-                <option value="uploaded">Uploaded</option>
-                <option value="not_uploaded">Not uploaded</option>
-              </Select>
-            </SelectWrap>
-
-            <SelectWrap>
-              <span style={{ fontWeight: 700, color: "#4a5568" }}>PFT</span>
-              <Select
-                value={fileFilters.pft}
-                onChange={(e) => setFileFilters((prev) => ({ ...prev, pft: e.target.value }))}
-              >
-                <option value="any">Any</option>
-                <option value="uploaded">Uploaded</option>
-                <option value="not_uploaded">Not uploaded</option>
-              </Select>
-            </SelectWrap>
-
-            <SelectWrap>
-              <span style={{ fontWeight: 700, color: "#4a5568" }}>Audiometric</span>
-              <Select
-                value={fileFilters.audiometric}
-                onChange={(e) => setFileFilters((prev) => ({ ...prev, audiometric: e.target.value }))}
-              >
-                <option value="any">Any</option>
-                <option value="uploaded">Uploaded</option>
-                <option value="not_uploaded">Not uploaded</option>
-              </Select>
-            </SelectWrap>
-
-            {/* Overall Status combobox */}
+            {/* Overall Status filter */}
             <SelectWrap>
               <span style={{ fontWeight: 700, color: "#4a5568" }}>Status</span>
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option value="any">Any</option>
-                <option value="approved">Approved</option>
+                <option value="approved">Approved / Complete</option>
                 <option value="pending">Pending</option>
               </Select>
             </SelectWrap>
@@ -825,15 +837,13 @@ export default function Investigation() {
             {(searchInput ||
               startDate ||
               endDate ||
-              Object.values(fileFilters).some((v) => v !== "any") ||
               statusFilter !== "any") && (
                 <ClearBtn
                   onClick={() => {
                     setSearchInput("")
                     setDebouncedSearch("")
-                    setStartDate(null)
-                    setEndDate(null)
-                    setFileFilters({ xrayfilm: "any", ecg: "any", pft: "any", audiometric: "any" })
+                    setStartDate(new Date())
+                    setEndDate(new Date())
                     setStatusFilter("any")
                   }}
                 >
@@ -864,14 +874,14 @@ export default function Investigation() {
               </thead>
               <tbody>
                 {filteredEmployees.map((emp) => (
-                  <TableRow key={emp.employee_id} style={{ background: emp.vitals ? "#e6ffe6" : "inherit" }}>
-                    <TableCell>{emp.employee_id}</TableCell>
+                  <TableRow key={emp.barcode || emp.employee_id} style={{ background: emp.vitals ? "#e6ffe6" : "inherit" }}>
+                    <TableCell>{emp.employee_id || "N/A"}</TableCell>
                     <TableCell>{emp.employee_name}</TableCell>
                     <TableCell>{emp.age}</TableCell>
                     <TableCell>{emp.gender}</TableCell>
                     <TableCell>{emp.barcode}</TableCell>
                     <TableCell>
-                      <Button onClick={() => handleSelectEmployee(emp.employee_id)}>Open Investigation</Button>
+                      <Button onClick={() => handleSelectEmployee(emp.barcode || emp.employee_id)}>Open Investigation</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -931,91 +941,267 @@ export default function Investigation() {
               </Field>
             </Grid>
             <br />
-            {/* X-Ray Film Upload, X-Ray Notes, X-Ray Report - Same Row */}
-            <RowGrid>
-              <Field>
-                <Label>X-Ray Film Upload</Label>
-                {existingFiles.xrayfilm && <UploadedChip>Already uploaded</UploadedChip>}
-                <Input
-                  type="file"
-                  onChange={(e) => handleFileChange(e, "xrayfilm")}
-                  disabled={!!existingFiles.xrayfilm}
-                />
-                {existingFiles.xrayfilm && <SmallNote>File ID: {existingFiles.xrayfilm}</SmallNote>}
-              </Field>
-              <Field>
-                <Label>X-Ray Notes</Label>
-                <TextArea
-                  name="xray_notes"
-                  value={form.xray_notes}
-                  onChange={handleChange}
-                  placeholder="Enter X-Ray observations or notes"
-                  rows={3}
-                />
-              </Field>
-            </RowGrid>
+            <br />
+            {/* 100% Dynamic Rendering of Test Sections */}
+            {form.test_results.map((test, idx) => {
+              const testName = (test.test_name || "").toUpperCase();
+              const isOphth = testName.includes("OPHTHALMOLOGY") || testName.includes("OPTHOLMOLOGY") || testName.includes("EYE") || testName.includes("VISUAL");
+              const isXray = testName.includes("X-RAY") || testName.includes("XRAY");
 
-            <Field style={{ gridColumn: "1 / -1" }}>
-              <Label>X-Ray Report</Label>
-              <TextArea
-                name="xray_report"
-                value={form.xray_report}
-                onChange={handleChange}
-                placeholder="Enter X-Ray report details"
-                rows={3}
-              />
-            </Field>
+              // 1. Ophthalmology (Specialized)
+              if (isOphth) {
+                const va = test.results?.visual_acuity || {
+                  distance: { right: "", left: "" },
+                  nearVision: { right: "", left: "" },
+                  colourVision: { right: "", left: "" },
+                  ocularmovement: { right: "", left: "" },
+                };
+                const setVA = (key, eye, val) => {
+                  const newVA = { ...va, [key]: { ...va[key], [eye]: val } };
+                  handleTestChange(idx, "results", { visual_acuity: newVA }, true);
+                };
+
+                return (
+                  <div key={idx} style={{ marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
+                    <h3 style={{ color: '#3F72AF', marginBottom: '15px', textTransform: 'uppercase' }}>{test.test_name} Investigation</h3>
+                    {[
+                      { label: "Distance", key: "distance" },
+                      { label: "Near Vision", key: "nearVision" },
+                      { label: "Colour Vision", key: "colourVision" },
+                      { label: "Ocular Movement", key: "ocularmovement" }
+                    ].map(item => (
+                      <RowGrid key={item.key} style={{ alignItems: 'center', marginBottom: '10px' }}>
+                        <div style={{ fontWeight: 800, color: '#112D4E', width: '150px' }}>{item.label}</div>
+                        <Input placeholder="Right Eye" value={va[item.key].right} onChange={e => setVA(item.key, 'right', e.target.value)} />
+                        <Input placeholder="Left Eye" value={va[item.key].left} onChange={e => setVA(item.key, 'left', e.target.value)} />
+                      </RowGrid>
+                    ))}
+                    <br />
+                    <TwoColGrid>
+                      <Field>
+                        <Label>Patient Complaints</Label>
+                        <TextArea
+                          value={test.results?.complaints || ""}
+                          onChange={e => handleTestChange(idx, "results", { complaints: e.target.value }, true)}
+                          placeholder="Complaints..."
+                          rows={3}
+                        />
+                      </Field>
+                      <Field>
+                        <Label>Remarks</Label>
+                        <TextArea
+                          value={test.results?.remarks || ""}
+                          onChange={e => handleTestChange(idx, "results", { remarks: e.target.value }, true)}
+                          placeholder="Remarks..."
+                          rows={3}
+                        />
+                      </Field>
+                    </TwoColGrid>
+                    {test.is_notes === true && (
+                      <Field style={{ marginTop: '15px' }}>
+                        <Label>Notes</Label>
+                        <TextArea
+                          value={test.notes || ""}
+                          onChange={e => handleTestChange(idx, "notes", e.target.value)}
+                          placeholder="Notes..."
+                          rows={3}
+                        />
+                      </Field>
+                    )}
+                    <Field style={{ marginTop: '15px' }}>
+                      <Label>File Upload (Optional)</Label>
+                      {(test.files || []).length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <UploadedChip>Already uploaded</UploadedChip>
+                          {test.files.map((fid, i) => (
+                            <div key={fid} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                              <ViewLink href={`${Labbaseurl}get_file/${fid}/`} target="_blank" rel="noreferrer">
+                                View File {test.files.length > 1 ? i + 1 : ""}
+                              </ViewLink>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteFile(idx, fid)}
+                                style={{ background: 'none', border: 'none', color: '#ef4444', marginLeft: '10px', cursor: 'pointer', fontSize: '14px' }}
+                                title="Delete File"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                      {files[idx] && files[idx].length > 0 && (
+                        <div style={{ marginTop: '5px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#4a5568' }}>Selected ({files[idx].length}):</span>
+                            <button type="button" onClick={() => setFiles(prev => { const n = { ...prev }; delete n[idx]; return n; })} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                          </div>
+                          {files[idx].map((f, i) => (
+                            <SmallNote key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>● {f.name}</span>
+                              <button type="button" onClick={() => handleRemoveSelectedFile(idx, i)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0 5px', cursor: 'pointer' }}>×</button>
+                            </SmallNote>
+                          ))}
+                        </div>
+                      )}
+                      {(test.files || []).length > 0 && <SmallNote>Uploaded File IDs: {test.files.join(", ")}</SmallNote>}
+                    </Field>
+                  </div>
+                );
+              }
+
+              // 2. X-Ray (Specialized)
+              if (isXray) {
+                return (
+                  <div key={idx} style={{ marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
+                    <h3 style={{ color: '#3F72AF', marginBottom: '15px', textTransform: 'uppercase' }}>{test.test_name} Investigation</h3>
+                    <TwoColGrid>
+                      {test.is_fileuploaded === true && (
+                        <Field>
+                          <Label>Film Upload</Label>
+                          {(test.files || []).length > 0 && (
+                            <div style={{ marginBottom: '8px' }}>
+                              <UploadedChip>Already uploaded</UploadedChip>
+                              {test.files.map((fid, i) => (
+                                <div key={fid} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                  <ViewLink href={`${Labbaseurl}get_file/${fid}/`} target="_blank" rel="noreferrer">
+                                    View File {test.files.length > 1 ? i + 1 : ""}
+                                  </ViewLink>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFile(idx, fid)}
+                                    style={{ background: 'none', border: 'none', color: '#ef4444', marginLeft: '10px', cursor: 'pointer', fontSize: '14px' }}
+                                    title="Delete File"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                          {files[idx] && files[idx].length > 0 && (
+                            <div style={{ marginTop: '5px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#4a5568' }}>Selected ({files[idx].length}):</span>
+                                <button type="button" onClick={() => setFiles(prev => { const n = { ...prev }; delete n[idx]; return n; })} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                              </div>
+                              {files[idx].map((f, i) => (
+                                <SmallNote key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>● {f.name}</span>
+                                  <button type="button" onClick={() => handleRemoveSelectedFile(idx, i)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0 5px', cursor: 'pointer' }}>×</button>
+                                </SmallNote>
+                              ))}
+                            </div>
+                          )}
+                          {(test.files || []).length > 0 && <SmallNote>Uploaded File IDs: {test.files.join(", ")}</SmallNote>}
+                        </Field>
+                      )}
+                      {test.is_notes === true && (
+                        <Field>
+                          <Label>Notes</Label>
+                          <TextArea
+                            value={test.notes || ""}
+                            onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                            placeholder="Notes..."
+                            rows={3}
+                          />
+                        </Field>
+                      )}
+                    </TwoColGrid>
+                    {test.is_report === true && (
+                      <Field style={{ marginTop: '12px', gridColumn: "1 / -1" }}>
+                        <Label>Report / Findings</Label>
+                        <TextArea
+                          value={test.results?.report || ""}
+                          onChange={(e) => handleTestChange(idx, 'results', { report: e.target.value }, true)}
+                          placeholder="Clinical Report..."
+                          rows={6}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                );
+              }
+
+              // 3. Generic Rendering
+              return (
+                <div key={idx} style={{ marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
+                  <h3 style={{ color: '#3F72AF', marginBottom: '15px', textTransform: 'uppercase' }}>{test.test_name} Investigation</h3>
+                  <TwoColGrid>
+                    {test.is_fileuploaded === true && (
+                      <Field>
+                        <Label>File Upload</Label>
+                        {(test.files || []).length > 0 && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <UploadedChip>Already uploaded</UploadedChip>
+                            {test.files.map((fid, i) => (
+                              <div key={fid} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                <ViewLink href={`${Labbaseurl}get_file/${fid}/`} target="_blank" rel="noreferrer">
+                                  View File {test.files.length > 1 ? i + 1 : ""}
+                                </ViewLink>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteFile(idx, fid)}
+                                  style={{ background: 'none', border: 'none', color: '#ef4444', marginLeft: '10px', cursor: 'pointer', fontSize: '14px' }}
+                                  title="Delete File"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                        {files[idx] && files[idx].length > 0 && (
+                          <div style={{ marginTop: '5px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#4a5568' }}>Selected ({files[idx].length}):</span>
+                              <button type="button" onClick={() => setFiles(prev => { const n = { ...prev }; delete n[idx]; return n; })} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                            </div>
+                            {files[idx].map((f, i) => (
+                              <SmallNote key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>● {f.name}</span>
+                                <button type="button" onClick={() => handleRemoveSelectedFile(idx, i)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0 5px', cursor: 'pointer' }}>×</button>
+                              </SmallNote>
+                            ))}
+                          </div>
+                        )}
+                        {(test.files || []).length > 0 && <SmallNote>Uploaded File IDs: {test.files.join(", ")}</SmallNote>}
+                      </Field>
+                    )}
+                    {test.is_notes === true && (
+                      <Field>
+                        <Label>Notes</Label>
+                        <TextArea
+                          value={test.notes || ""}
+                          onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                          placeholder="Enter notes..."
+                          rows={4}
+                        />
+                      </Field>
+                    )}
+                    {test.is_report === true && (
+                      <Field style={{ gridColumn: test.is_notes === true ? "1 / -1" : "auto", marginTop: test.is_notes === true ? "15px" : "0" }}>
+                        <Label>Observations / Results / Report</Label>
+                        <TextArea
+                          value={test.results?.report || ""}
+                          onChange={(e) => handleTestChange(idx, 'results', { report: e.target.value }, true)}
+                          placeholder="Enter clinical report..."
+                          rows={6}
+                        />
+                      </Field>
+                    )}
+                  </TwoColGrid>
+                </div>
+              );
+            })}
 
             <br />
 
-            {/* PFT Upload, PFT Notes - Same Row */}
-            <TwoColGrid>
-              <Field>
-                <Label>PFT Upload</Label>
-                {existingFiles.pft && <UploadedChip>Already uploaded</UploadedChip>}
-                <Input type="file" onChange={(e) => handleFileChange(e, "pft")} disabled={!!existingFiles.pft} />
-                {existingFiles.pft && <SmallNote>File ID: {existingFiles.pft}</SmallNote>}
-              </Field>
-              <Field>
-                <Label>PFT Notes</Label>
-                <TextArea name="pft_notes" rows="3" value={form.pft_notes} onChange={handleChange} />
-              </Field>
-            </TwoColGrid>
-
-            {/* Audiometric Upload, Audiometry Notes - Same Row */}
-            <TwoColGrid>
-              <Field>
-                <Label>Audiometric Upload</Label>
-                {existingFiles.audiometric && <UploadedChip>Already uploaded</UploadedChip>}
-                <Input
-                  type="file"
-                  onChange={(e) => handleFileChange(e, "audiometric")}
-                  disabled={!!existingFiles.audiometric}
-                />
-                {existingFiles.audiometric && <SmallNote>File ID: {existingFiles.audiometric}</SmallNote>}
-              </Field>
-              <Field>
-                <Label>Audiometry Notes</Label>
-                <TextArea name="audiometry_notes" rows="3" value={form.audiometry_notes} onChange={handleChange} />
-              </Field>
-            </TwoColGrid>
-
-            {/* ECG Upload, ECG Notes - Same Row */}
-            <TwoColGrid>
-              <Field>
-                <Label>ECG Upload</Label>
-                {existingFiles.ecg && <UploadedChip>Already uploaded</UploadedChip>}
-                <Input type="file" onChange={(e) => handleFileChange(e, "ecg")} disabled={!!existingFiles.ecg} />
-                {existingFiles.ecg && <SmallNote>File ID: {existingFiles.ecg}</SmallNote>}
-              </Field>
-              <Field>
-                <Label>ECG Notes</Label>
-                <TextArea name="ecg_notes" rows="3" value={form.ecg_notes} onChange={handleChange} />
-              </Field>
-            </TwoColGrid>
-
             <Button type="submit" disabled={uploading}>
-              {uploading ? `Uploading ${progress}%` : "Submit Investigation"}
+              {uploading ? `Uploading ${progress}%` : "Submit All Results"}
             </Button>
           </form>
         </FormContainer>

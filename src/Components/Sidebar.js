@@ -236,15 +236,16 @@ export default function Sidebar() {
   const allLinks = useMemo(() => ([
     { path: "/Dashboard", label: "Dashboard", icon: <HouseDoor /> },
     { path: "/EmployeeRegistration", label: "Employee Registration", icon: <PersonLinesFill /> },
+    { path: "/OffsitePatients", label: "Offsite Patients", icon: <PersonLinesFill /> },
     { path: "/SampleCollection", label: "Sample Collection", icon: <ClipboardData /> },
     { path: "/SampleTransfer", label: "Sample Transfer", icon: <Send /> },
     { path: "/BatchGeneration", label: "Batch Generation", icon: <Box /> },
     { path: "/Investigation", label: "Investigation", icon: <FileEarmarkMedical /> },
     { path: "/DoctorApprovalInvestigations", label: "Doctor Approval Investigations", icon: <CheckCircle /> },
     { path: "/DoctorApprovalOphthalmology", label: "Doctor Approval Ophthalmology", icon: <CheckCircle /> },
-    { path: "/OphthalmologyForm", label: "Ophthalmology", icon: <EyeFill /> },
     { path: "/RegisteredEmployees", label: "Employee List", icon: <People /> },
     { path: "/CHCReport", label: "CHC Report", icon: <People /> },
+    { path: "/PackageCreation", label: "Company & Package Creation", icon: <PersonLinesFill /> },
   ]), []);
 
   // Filter by role

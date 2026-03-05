@@ -10,13 +10,13 @@ import Sidebar from "./Components/Sidebar";
 import styled from "styled-components";
 import Investigation from "./Components/Investigation";
 import RegisteredEmployees from "./Components/RegisteredEmployees";
-import Ophthalmology from "./Components/Ophthalmology";
 import DoctorApprovalInvestigations from "./Components/DoctorApprovalInvestigations";
 import DoctorApprovalOphthalmology from "./Components/DoctorApprovalOphthalmology";
 import Dashboard from "./Components/Dashboard";
 import Register from "./Components/Register";
 import Login from "./Components/Login";
 import CHCReport from "./Components/CHCReport";
+import OffsitePatients from "./Components/OffsitePatients";
 
 
 // Content now accepts a flag to control the left margin
@@ -46,12 +46,12 @@ function AppInner() {
           <Route path="/BatchGeneration" element={<BatchGeneration />} />
           <Route path="/Investigation" element={<Investigation />} />
           <Route path="/RegisteredEmployees" element={<RegisteredEmployees />} />
-          <Route path="/OphthalmologyForm" element={<Ophthalmology />} />
           <Route path="/DoctorApprovalInvestigations" element={<DoctorApprovalInvestigations />} />
           <Route path="/DoctorApprovalOphthalmology" element={<DoctorApprovalOphthalmology />} />
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Register" element={<Register />} />
           <Route path="/CHCReport" element={<CHCReport />} />
+          <Route path="/OffsitePatients" element={<OffsitePatients />} />
 
           <Route path="/" element={<Login />} />
 
