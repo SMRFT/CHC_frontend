@@ -5,6 +5,10 @@ import styled from "styled-components"
 import axios from "axios"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
+import { Printer } from "lucide-react"
+
+import HeaderImg from "./Images/Header.png"
+import FooterImg from "./Images/Footer.png"
 
 // Styled Components (existing)
 const Container = styled.div`
@@ -316,6 +320,14 @@ export default function Investigation() {
     barcode: "",
     vitals: { height_cm: "", weight_kg: "", bmi: "", blood_pressure: "", spo2: "" },
     patient_history: "",
+    visual_acuity: {
+      distance: { right: "", left: "" },
+      nearVision: { right: "", left: "" },
+      colourVision: { right: "", left: "" },
+      ocularmovement: { right: "", left: "" },
+      complaints: "",
+      remarks: "",
+    },
     test_results: [], // Dynamic array of test objects
   })
 
@@ -337,6 +349,102 @@ export default function Investigation() {
 
   // Overall status filter
   const [statusFilter, setStatusFilter] = useState("any")
+
+  const handlePrintVitals = (emp) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+
+    const vitals = emp.vitals || {};
+    const dateStr = emp.created_date ? new Date(emp.created_date).toLocaleDateString() : new Date().toLocaleDateString();
+
+    doc.open();
+    doc.write(`
+        <html>
+            <head>
+                <title>Vitals - ${emp.employee_name}</title>
+                <style>
+                    @page { size: portrait; margin: 10mm; }
+                    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 13px; }
+                    .report-header-space { height: 35mm; }
+                    .report-footer-space { height: 35mm; }
+                    .report-header { position: fixed; top: 0; left: 0; width: 100%; height: 35mm; }
+                    .report-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 35mm; }
+                    .header-img { width: 100%; height: auto; }
+                    .footer-img { width: 100%; height: auto; }
+                    .content-table { width: 100%; border-collapse: collapse; }
+                    .main-content { padding: 5mm 5mm; }
+                    .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+                    .info-table td { padding: 5px 0; vertical-align: top; width: 25%; }
+                    .label { font-weight: bold; font-size: 13px; }
+                    .value { font-size: 13px; }
+                    .vitals-section { margin-top: 30px; }
+                    .vitals-header { font-weight: bold; font-size: 16px; margin-bottom: 15px; text-decoration: underline; }
+                    .vitals-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    .vitals-grid td { padding: 8px; border: 1px solid #ccc; font-size: 14px; }
+                    .vitals-label { font-weight: bold; background: #f7f7f7; width: 40%; }
+                </style>
+            </head>
+            <body>
+                <div class="report-header"><img src="${HeaderImg}" class="header-img" /></div>
+                <div class="report-footer"><img src="${FooterImg}" class="footer-img" /></div>
+                <table class="content-table">
+                    <thead><tr><td><div class="report-header-space"></div></td></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="main-content">
+                                    <table class="info-table">
+                                        <tr>
+                                            <td class="label">Name:</td>
+                                            <td class="value">${emp.employee_name || "-"}</td>
+                                            <td class="label">Date:</td>
+                                            <td class="value">${dateStr}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Age/Gender:</td>
+                                            <td class="value">${emp.age || "-"}/${emp.gender || "-"}</td>
+                                            <td class="label">Ref.By:</td>
+                                            <td class="value">${emp.company_name || "-"}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">Barcode:</td>
+                                            <td class="value" colspan="3">${emp.barcode || "-"}</td>
+                                        </tr>
+                                    </table>
+
+                                    <div class="vitals-section">
+                                        <div class="vitals-header">VITALS:</div>
+                                        <table class="vitals-grid">
+                                            <tr><td class="vitals-label">Height (cm)</td><td>${vitals.height_cm || "-"}</td></tr>
+                                            <tr><td class="vitals-label">Weight (kg)</td><td>${vitals.weight_kg || "-"}</td></tr>
+                                            <tr><td class="vitals-label">BMI</td><td>${vitals.bmi || "-"}</td></tr>
+                                            <tr><td class="vitals-label">Blood Pressure</td><td>${vitals.blood_pressure || "-"}</td></tr>
+                                            <tr><td class="vitals-label">SpO2</td><td>${vitals.spo2 || "-"}</td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot><tr><td><div class="report-footer-space"></div></td></tr></tfoot>
+                </table>
+            </body>
+        </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow.print();
+        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+      }, 500);
+    };
+  };
 
   const showToast = (message, type = "info") => {
     const id = Date.now()
@@ -464,6 +572,21 @@ export default function Investigation() {
         .filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
         .map((bt) => {
           const saved = savedTests.find((st) => String(st.test_id) === String(bt.test_id))
+
+          // Determine the report value.
+          // Fallback order: saved.results.report -> saved.report -> bt.report (master template)
+          let reportValue = "";
+          if (saved) {
+            if (saved.results && typeof saved.results.report === "string") {
+              reportValue = saved.results.report;
+            } else if (typeof saved.report === "string") {
+              reportValue = saved.report;
+            }
+          }
+          if (!reportValue && bt.report) {
+            reportValue = bt.report;
+          }
+
           return {
             test_id: bt.test_id,
             test_name: bt.test_name || bt.testname,
@@ -471,9 +594,9 @@ export default function Investigation() {
             is_notes: bt.is_notes,
             is_report: bt.is_report,
             is_active: bt.is_active,
-            results: saved
-              ? saved.results
-              : { report: bt.report || "" }, // Use master report template if new
+            results: saved && saved.results
+              ? { ...saved.results, report: reportValue }
+              : { report: reportValue },
             files: saved ? saved.files : [],
             notes: saved
               ? saved.notes
@@ -489,6 +612,28 @@ export default function Investigation() {
         barcode: selectedEmployee.barcode,
         vitals: parseJson(selectedEmployee.vitals),
         patient_history: selectedEmployee.patient_history || "",
+        visual_acuity: (() => {
+          const defaultVA = {
+            distance: { right: "", left: "" },
+            nearVision: { right: "", left: "" },
+            colourVision: { right: "", left: "" },
+            ocularmovement: { right: "", left: "" },
+            complaints: "",
+            remarks: "",
+          };
+          const savedVA = parseJson(selectedEmployee.visual_acuity, defaultVA);
+          const mergedVA = { ...defaultVA };
+          Object.keys(defaultVA).forEach(key => {
+            if (savedVA && savedVA[key]) {
+              if (typeof defaultVA[key] === 'object' && defaultVA[key] !== null) {
+                mergedVA[key] = { ...defaultVA[key], ...savedVA[key] };
+              } else {
+                mergedVA[key] = savedVA[key];
+              }
+            }
+          });
+          return mergedVA;
+        })(),
         test_results: activeTests || []
       }))
     }
@@ -526,16 +671,28 @@ export default function Investigation() {
   }
 
   const handleVisualAcuityChange = (key, eye, value) => {
-    setForm(prev => ({
-      ...prev,
-      visual_acuity: {
-        ...prev.visual_acuity,
-        [key]: {
-          ...prev.visual_acuity[key],
-          [eye]: value
+    setForm(prev => {
+      if (eye) { // Nested update (right/left)
+        return {
+          ...prev,
+          visual_acuity: {
+            ...prev.visual_acuity,
+            [key]: {
+              ...(prev.visual_acuity[key] || {}),
+              [eye]: value
+            }
+          }
+        }
+      } else { // Top level update (complaints)
+        return {
+          ...prev,
+          visual_acuity: {
+            ...prev.visual_acuity,
+            [key]: value
+          }
         }
       }
-    }))
+    })
   }
 
   const handleTestChange = (testIdx, field, value, isResult = false) => {
@@ -729,6 +886,7 @@ export default function Investigation() {
         spo2: form.vitals.spo2 || "",
       }
       fd.append("vitals", JSON.stringify(vitalsToSend))
+      fd.append("visual_acuity", JSON.stringify(form.visual_acuity))
 
       // Sending the dynamic test_results array
       fd.append("test_results", JSON.stringify(form.test_results))
@@ -881,7 +1039,15 @@ export default function Investigation() {
                     <TableCell>{emp.gender}</TableCell>
                     <TableCell>{emp.barcode}</TableCell>
                     <TableCell>
-                      <Button onClick={() => handleSelectEmployee(emp.barcode || emp.employee_id)}>Open Investigation</Button>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <Button onClick={() => handleSelectEmployee(emp.barcode || emp.employee_id)}>Open Investigation</Button>
+                        <Button
+                          style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                          onClick={() => handlePrintVitals(emp)}
+                        >
+                          <Printer size={14} style={{ marginRight: '5px' }} /> Print Vitals
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -949,17 +1115,9 @@ export default function Investigation() {
               const isXray = testName.includes("X-RAY") || testName.includes("XRAY");
 
               // 1. Ophthalmology (Specialized)
-              if (isOphth) {
-                const va = test.results?.visual_acuity || {
-                  distance: { right: "", left: "" },
-                  nearVision: { right: "", left: "" },
-                  colourVision: { right: "", left: "" },
-                  ocularmovement: { right: "", left: "" },
-                };
-                const setVA = (key, eye, val) => {
-                  const newVA = { ...va, [key]: { ...va[key], [eye]: val } };
-                  handleTestChange(idx, "results", { visual_acuity: newVA }, true);
-                };
+              if (isOphth || String(test.test_id).toUpperCase() === "CHCT001") {
+                const va = form.visual_acuity;
+                const setVA = handleVisualAcuityChange;
 
                 return (
                   <div key={idx} style={{ marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
@@ -972,8 +1130,8 @@ export default function Investigation() {
                     ].map(item => (
                       <RowGrid key={item.key} style={{ alignItems: 'center', marginBottom: '10px' }}>
                         <div style={{ fontWeight: 800, color: '#112D4E', width: '150px' }}>{item.label}</div>
-                        <Input placeholder="Right Eye" value={va[item.key].right} onChange={e => setVA(item.key, 'right', e.target.value)} />
-                        <Input placeholder="Left Eye" value={va[item.key].left} onChange={e => setVA(item.key, 'left', e.target.value)} />
+                        <Input placeholder="Right Eye" value={va[item.key]?.right ?? ""} onChange={e => setVA(item.key, 'right', e.target.value)} />
+                        <Input placeholder="Left Eye" value={va[item.key]?.left ?? ""} onChange={e => setVA(item.key, 'left', e.target.value)} />
                       </RowGrid>
                     ))}
                     <br />
@@ -981,8 +1139,8 @@ export default function Investigation() {
                       <Field>
                         <Label>Patient Complaints</Label>
                         <TextArea
-                          value={test.results?.complaints || ""}
-                          onChange={e => handleTestChange(idx, "results", { complaints: e.target.value }, true)}
+                          value={form.visual_acuity.complaints || ""}
+                          onChange={e => handleVisualAcuityChange("complaints", null, e.target.value)}
                           placeholder="Complaints..."
                           rows={3}
                         />
@@ -990,8 +1148,8 @@ export default function Investigation() {
                       <Field>
                         <Label>Remarks</Label>
                         <TextArea
-                          value={test.results?.remarks || ""}
-                          onChange={e => handleTestChange(idx, "results", { remarks: e.target.value }, true)}
+                          value={form.visual_acuity.remarks || ""}
+                          onChange={e => handleVisualAcuityChange("remarks", null, e.target.value)}
                           placeholder="Remarks..."
                           rows={3}
                         />
@@ -1008,45 +1166,47 @@ export default function Investigation() {
                         />
                       </Field>
                     )}
-                    <Field style={{ marginTop: '15px' }}>
-                      <Label>File Upload (Optional)</Label>
-                      {(test.files || []).length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <UploadedChip>Already uploaded</UploadedChip>
-                          {test.files.map((fid, i) => (
-                            <div key={fid} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                              <ViewLink href={`${Labbaseurl}get_file/${fid}/`} target="_blank" rel="noreferrer">
-                                View File {test.files.length > 1 ? i + 1 : ""}
-                              </ViewLink>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteFile(idx, fid)}
-                                style={{ background: 'none', border: 'none', color: '#ef4444', marginLeft: '10px', cursor: 'pointer', fontSize: '14px' }}
-                                title="Delete File"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
-                      {files[idx] && files[idx].length > 0 && (
-                        <div style={{ marginTop: '5px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#4a5568' }}>Selected ({files[idx].length}):</span>
-                            <button type="button" onClick={() => setFiles(prev => { const n = { ...prev }; delete n[idx]; return n; })} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                    {test.is_fileuploaded === true && (
+                      <Field style={{ marginTop: '15px' }}>
+                        <Label>File Upload (Optional)</Label>
+                        {(test.files || []).length > 0 && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <UploadedChip>Already uploaded</UploadedChip>
+                            {test.files.map((fid, i) => (
+                              <div key={fid} style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                                <ViewLink href={`${Labbaseurl}get_file/${fid}/`} target="_blank" rel="noreferrer">
+                                  View File {test.files.length > 1 ? i + 1 : ""}
+                                </ViewLink>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteFile(idx, fid)}
+                                  style={{ background: 'none', border: 'none', color: '#ef4444', marginLeft: '10px', cursor: 'pointer', fontSize: '14px' }}
+                                  title="Delete File"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                          {files[idx].map((f, i) => (
-                            <SmallNote key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>● {f.name}</span>
-                              <button type="button" onClick={() => handleRemoveSelectedFile(idx, i)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0 5px', cursor: 'pointer' }}>×</button>
-                            </SmallNote>
-                          ))}
-                        </div>
-                      )}
-                      {(test.files || []).length > 0 && <SmallNote>Uploaded File IDs: {test.files.join(", ")}</SmallNote>}
-                    </Field>
+                        )}
+                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                        {files[idx] && files[idx].length > 0 && (
+                          <div style={{ marginTop: '5px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#4a5568' }}>Selected ({files[idx].length}):</span>
+                              <button type="button" onClick={() => setFiles(prev => { const n = { ...prev }; delete n[idx]; return n; })} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                            </div>
+                            {files[idx].map((f, i) => (
+                              <SmallNote key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>● {f.name}</span>
+                                <button type="button" onClick={() => handleRemoveSelectedFile(idx, i)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0 5px', cursor: 'pointer' }}>×</button>
+                              </SmallNote>
+                            ))}
+                          </div>
+                        )}
+                        {(test.files || []).length > 0 && <SmallNote>Uploaded File IDs: {test.files.join(", ")}</SmallNote>}
+                      </Field>
+                    )}
                   </div>
                 );
               }
