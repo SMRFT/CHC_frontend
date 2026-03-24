@@ -425,7 +425,7 @@ const CHCReport = () => {
   const [statusFilter, setStatusFilter] = useState("Approved");
   const navigate = useNavigate();
   const location = useLocation();
-  const Labbaseurl = "https://test.shinova.in/_b_a_c_k_e_n_d/LIS/";
+  const Labbaseurl = "https://shinova.in/_b_a_c_k_e_n_d/LIS/";
 
   // MOVE THIS OUTSIDE of useEffect - use useCallback to memoize it
   const fetchCombinedPatientData = useCallback(async () => {
