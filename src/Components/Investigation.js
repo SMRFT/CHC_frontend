@@ -416,7 +416,12 @@ export default function Investigation() {
                                             <td class="value" colspan="3">${emp.barcode || "-"}</td>
                                         </tr>
                                     </table>
-
+                                    <table>
+                                        <tr>
+                                            <td class="label">Patient History:</td>
+                                            <td class="value">${emp.patient_history || "-"}</td>
+                                        </tr>
+                                    </table>
                                     <div class="vitals-section">
                                         <div class="vitals-header">VITALS:</div>
                                         <table class="vitals-grid">

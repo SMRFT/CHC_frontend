@@ -247,6 +247,8 @@ export default function Sidebar() {
     // { path: "/DoctorApprovalOphthalmology", label: "Doctor Approval Ophthalmology", icon: <CheckCircle /> },
     { path: "/RegisteredEmployees", label: "Employee List", icon: <People /> },
     { path: "/CHCReport", label: "CHC Report", icon: <People /> },
+    { path: "/CreditToPaid", label: "Payments", icon: <CheckCircle /> },
+    { path: "/PaymentReport", label: "Payment Report", icon: <ClipboardData /> },
     { path: "/PackageCreation", label: "Company & Package Creation", icon: <PersonLinesFill /> },
   ]), []);
 
