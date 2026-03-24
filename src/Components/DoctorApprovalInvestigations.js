@@ -526,6 +526,39 @@ export default function DoctorApprovalInvestigations() {
                 </div>
               </div>
 
+              {selectedInv.visual_acuity && Object.values(selectedInv.visual_acuity).some(v => v.right || v.left) && (
+                <div style={{ background: '#fff9e6', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #ffe699' }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#856404', fontSize: '14px', textTransform: 'uppercase' }}>Ophthalmology Results (Visual Acuity)</h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ffe699' }}>Parameter</th>
+                        <th style={{ textAlign: 'center', padding: '8px', borderBottom: '1px solid #ffe699' }}>Right Eye</th>
+                        <th style={{ textAlign: 'center', padding: '8px', borderBottom: '1px solid #ffe699' }}>Left Eye</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Distance", key: "distance" },
+                        { label: "Near Vision", key: "nearVision" },
+                        { label: "Colour Vision", key: "colourVision" },
+                        { label: "Ocular Movement", key: "ocularmovement" }
+                      ].map(item => (
+                        <tr key={item.key}>
+                          <td style={{ padding: '8px', borderBottom: '1px solid #fff3cd', fontWeight: 'bold' }}>{item.label}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid #fff3cd', textAlign: 'center' }}>{selectedInv.visual_acuity[item.key]?.right || "-"}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid #fff3cd', textAlign: 'center' }}>{selectedInv.visual_acuity[item.key]?.left || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ marginTop: '12px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div><strong>Patient Complaints:</strong> {selectedInv.visual_acuity.complaints || "-"}</div>
+                    <div><strong>Remarks:</strong> {selectedInv.visual_acuity.remarks || "-"}</div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {selectedInv.test_results?.length > 0 ? selectedInv.test_results.map((test, idx) => (
                   <div key={idx} style={{ padding: '16px', borderRadius: '12px', border: '1px solid #f1f5f9', background: '#fff', display: 'flex', flexDirection: 'column', gap: '12px' }}>

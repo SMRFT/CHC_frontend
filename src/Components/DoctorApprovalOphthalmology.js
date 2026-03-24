@@ -926,11 +926,11 @@ export default function DoctorApprovalOphthalmology() {
                       </Td>
 
                       <Td style={{ maxWidth: '200px', textAlign: 'left', fontSize: '12.5px', lineHeight: '1.6' }}>
-                        {op.patient_complaints || "-"}
+                        {visualAcuity.complaints || "-"}
                       </Td>
 
                       <Td style={{ maxWidth: '200px', textAlign: 'left', fontSize: '12.5px', lineHeight: '1.6' }}>
-                        {op.remarks || "-"}
+                        {visualAcuity.remarks || "-"}
                       </Td>
 
                       <Td>
