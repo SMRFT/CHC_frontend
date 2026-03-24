@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import SampleCollection from "./Components/SampleCollection";
 import SampleTransfer from "./Components/SampleTransfer";
 import BatchGeneration from "./Components/BatchGeneration";
+import GeneratedBatch from "./Components/GeneratedBatch";
 import EmployeeRegistration from "./Components/EmployeeRegistration";
 import RegistrationEdition from "./Components/RegistrationEdition";
 import PackageCreation from "./Components/PackageCreation";
@@ -44,6 +45,7 @@ function AppInner() {
           <Route path="/SampleCollection" element={<SampleCollection />} />
           <Route path="/SampleTransfer" element={<SampleTransfer />} />
           <Route path="/BatchGeneration" element={<BatchGeneration />} />
+          <Route path="/GeneratedBatch" element={<GeneratedBatch />} />
           <Route path="/Investigation" element={<Investigation />} />
           <Route path="/RegisteredEmployees" element={<RegisteredEmployees />} />
           <Route path="/DoctorApprovalInvestigations" element={<DoctorApprovalInvestigations />} />
