@@ -178,27 +178,28 @@ const BatchGeneration = () => {
     fetch(`${Labbaseurl}companies/`)
       .then(r => r.json())
       .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error)
+      .catch(console.error);
+    
+    // Initial fetch
+    fetchTransferredSamples();
   }, [Labbaseurl])
 
   const selectedCompany = companies.find(c => c.company_id === filters.company_id) || null
 
   // ── Fetch transferred samples ──────────────────────────────────────────────
   const fetchTransferredSamples = async () => {
-    if (!filters.company_id) {
-      setSampleError("Please select a company before searching.")
-      return
-    }
     setLoadingSamples(true)
     setSampleError(null)
     setTransferredSamples([])
     try {
-      let url = `${Labbaseurl}samples/transferred/?samplestatus=Transferred`
-      url += `&from_date=${filters.from_date}`
-      url += `&to_date=${filters.to_date}`
-      url += `&company_id=${filters.company_id}`
-
-      const response = await fetch(url)
+      const queryParams = new URLSearchParams({
+        samplestatus: "Transferred",
+        from_date:    filters.from_date,
+        to_date:      filters.to_date,
+      })
+      if (filters.company_id) queryParams.append("company_id", filters.company_id)
+      
+      const response = await fetch(`${Labbaseurl}samples/transferred/?${queryParams.toString()}`)
       if (!response.ok) {
         const err = await response.json()
         throw new Error(err.error || "Failed to fetch transferred samples.")
@@ -234,15 +235,15 @@ const BatchGeneration = () => {
       for (const s of transferredSamples) {
         if (!seen.has(s.barcode)) {
           seen.add(s.barcode)
-          batchDetails.push({ barcode: s.barcode })
+          batchDetails.push({ barcode: s.barcode, company_id: s.company_id })
         }
       }
       const payload = {
         batch_details: batchDetails,
         received:      false,
         remarks:       null,
-        company_id:    filters.company_id,
-        company_name:  selectedCompany?.company_name || "",
+        company_id:    filters.company_id || (transferredSamples.length > 0 ? transferredSamples[0].company_id : ""),
+        company_name:  selectedCompany?.company_name || (transferredSamples.length > 0 ? transferredSamples[0].company_name : ""),
       }
 
       const response = await fetch(`${Labbaseurl}batch/`, {
@@ -295,8 +296,7 @@ const BatchGeneration = () => {
     ).join("")
     const totalContainers = containerCounts.reduce((a,b)=>a+b.count, 0)
 
-    // Patient rows — one row per TEST, patient info spans with rowspan
-    // Container column shows the test's own collection_container
+    // Patient rows — joined test names, removed container column
     let patientRows = ""
     let serialNo    = 1
 
@@ -304,30 +304,18 @@ const BatchGeneration = () => {
       const patientId   = s.patient_details?.patient_id   || s.patient_id   || "N/A"
       const patientName = s.patient_details?.patient_name || s.patientname  || s.patient_name || "N/A"
       const tests       = Array.isArray(s.testdetails) ? s.testdetails : []
-      const rowspan     = tests.length || 1
+      
+      const testNamesStr = tests.length > 0 
+        ? tests.map(t => t.testname || t.test_name || "N/A").join(", ")
+        : "—"
 
-      if (tests.length === 0) {
-        patientRows += `<tr class="patient-first">
-          <td class="center">${serialNo++}</td><td>${patientId}</td><td>${patientName}</td>
-          <td class="mono">${s.barcode||"N/A"}</td><td>—</td><td>—</td></tr>`
-      } else {
-        tests.forEach((t, ti) => {
-          const container = t.collection_container || "—"
-          if (ti === 0) {
-            patientRows += `<tr class="patient-first">
-              <td class="center" rowspan="${rowspan}">${serialNo++}</td>
-              <td rowspan="${rowspan}">${patientId}</td>
-              <td rowspan="${rowspan}">${patientName}</td>
-              <td class="mono" rowspan="${rowspan}">${s.barcode||"N/A"}</td>
-              <td>${t.testname||t.test_name||"N/A"}</td>
-              <td>${container}</td></tr>`
-          } else {
-            patientRows += `<tr class="patient-next">
-              <td>${t.testname||t.test_name||"N/A"}</td>
-              <td>${container}</td></tr>`
-          }
-        })
-      }
+      patientRows += `<tr class="patient-first">
+        <td class="center">${serialNo++}</td>
+        <td>${patientId}</td>
+        <td>${patientName}</td>
+        <td class="mono">${s.barcode||"N/A"}</td>
+        <td style="line-height:1.4;">${testNamesStr}</td>
+      </tr>`
     })
 
     const html = `<!DOCTYPE html>
@@ -389,10 +377,9 @@ const BatchGeneration = () => {
     <th style="width:90px">Patient ID</th>
     <th style="width:130px">Patient Name</th>
     <th style="width:100px">Barcode</th>
-    <th>Test Name</th>
-    <th style="width:160px">Collection Container</th>
+    <th>Test Names</th>
   </tr></thead>
-  <tbody>${patientRows||'<tr><td colspan="6" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
+  <tbody>${patientRows||'<tr><td colspan="5" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
 </table>
 
 <div class="sec-title">Container Summary</div>
@@ -440,10 +427,10 @@ const BatchGeneration = () => {
                 onChange={e => setFilters(p => ({ ...p, to_date: e.target.value }))} />
             </FilterGroup>
             <FilterGroup>
-              <Label htmlFor="company_id">Company *</Label>
+              <Label htmlFor="company_id">Company</Label>
               <Select id="company_id" value={filters.company_id}
                 onChange={e => setFilters(p => ({ ...p, company_id: e.target.value }))} required>
-                <option value="">-- Select Company --</option>
+                <option value="">All Companies</option>
                 {companies.map(c => (
                   <option key={c.company_id} value={c.company_id}>
                     {c.company_name} ({c.company_id})
@@ -479,6 +466,7 @@ const BatchGeneration = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Patient ID</TableHead>
                   <TableHead>Patient Name</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Tests</TableHead>
@@ -486,7 +474,6 @@ const BatchGeneration = () => {
               </TableHeader>
               <tbody>
                 {transferredSamples.map((sample, index) => {
-                  const uniqueContainers = getUniqueContainers(sample.testdetails)
                   return (
                     <TableRow key={index}>
                       <TableCell>{index + 1}</TableCell>
@@ -503,6 +490,7 @@ const BatchGeneration = () => {
                       <TableCell style={{ fontWeight:600 }}>
                         {sample.patient_details?.patient_name || sample.patientname || sample.patient_name || "—"}
                       </TableCell>
+                      <TableCell>{sample.company_name || sample.company_id || "—"}</TableCell>
                       <TableCell>
                         <span style={{ fontFamily:"Courier New,monospace", fontSize:"0.82rem",
                           background:"#f1f5f9", padding:"3px 8px", borderRadius:4 }}>

@@ -221,7 +221,10 @@ const SampleTransfer = () => {
     fetch(`${Labbaseurl}companies/`)
       .then(r => r.json())
       .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error)
+      .catch(console.error);
+    
+    // Initial fetch
+    fetchCollectedSamples();
   }, [Labbaseurl])
 
   const getLoggedInUserId = () => localStorage.getItem("user_id") || "system"
@@ -246,19 +249,15 @@ const SampleTransfer = () => {
     setError("")
     setSuccess("")
 
-    if (!filters.company_id) {
-      setError("Please select a company to search collected samples.")
-      setLoading(false)
-      return
-    }
+    // Made company optional
 
     try {
       const queryParams = new URLSearchParams({
         samplestatus: "Collected",
         from_date:    filters.from_date,
         to_date:      filters.to_date,
-        company_id:   filters.company_id,
       })
+      if (filters.company_id)  queryParams.append("company_id",  filters.company_id)
       if (filters.employee_id) queryParams.append("employee_id", filters.employee_id)
       if (filters.barcode)     queryParams.append("barcode",     filters.barcode)
 
@@ -363,7 +362,7 @@ const SampleTransfer = () => {
         from_date:      filters.from_date,
         to_date:        filters.to_date,
         date:           filters.from_date,
-        company_id:     filters.company_id,
+        company_id:     selectedSample.company_id, // Use sample's own company_id
         barcode:        selectedSample.barcode,
         employee_id:    selectedSample.employee_id,
         testdetails:    formattedTestDetails,
@@ -372,7 +371,7 @@ const SampleTransfer = () => {
       }
 
       const response = await fetch(
-        `${Labbaseurl}samples/?company_id=${filters.company_id}&barcode=${selectedSample.barcode}`,
+        `${Labbaseurl}samples/?company_id=${selectedSample.company_id}&barcode=${selectedSample.barcode}`,
         {
           method:  "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -418,10 +417,10 @@ const SampleTransfer = () => {
               onChange={e => handleFilterChange("to_date", e.target.value)} />
           </FilterGroup>
           <FilterGroup>
-            <Label htmlFor="company_id">Company *</Label>
+            <Label htmlFor="company_id">Company</Label>
             <Select id="company_id" value={filters.company_id}
               onChange={e => handleFilterChange("company_id", e.target.value)} required>
-              <option value="">-- Select Company --</option>
+              <option value="">All Companies</option>
               {companies.map(c => (
                 <option key={c.company_id} value={c.company_id}>
                   {c.company_name} ({c.company_id})
@@ -469,6 +468,7 @@ const SampleTransfer = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Patient Details</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Barcode</TableHead>
                 <TableHead>Collection Date</TableHead>
                 <TableHead>Tests</TableHead>
@@ -491,6 +491,7 @@ const SampleTransfer = () => {
                         <PatientAge>{sample.age} years • {sample.gender}</PatientAge>
                       )}
                     </TableCell>
+                    <TableCell>{sample.company_name || "-"}</TableCell>
                     <TableCell>{sample.barcode || "N/A"}</TableCell>
                     <TableCell>
                       {new Date(sample.created_date || sample.collected_date).toLocaleDateString("en-GB")}

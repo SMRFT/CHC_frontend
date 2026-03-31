@@ -147,46 +147,27 @@ const printBatchPDF = (batch, companies) => {
   ).join("")
   const totalContainers = (containerCounts || []).reduce((a, b) => a + b.count, 0)
 
-  // Patient rows — one row per test, patient info spans rowspan
+  // Patient rows — joined test names, removed container column
   let patientRows = ""
   let serialNo    = 1
 
   ;(batch_details || []).forEach((s) => {
-    // Patient info is now directly on the item (enriched by backend)
     const patientId   = s.patient_id   || s.patient_details?.patient_id   || "N/A"
     const patientName = s.patient_name || s.patient_details?.patient_name || "N/A"
     const tests       = Array.isArray(s.testdetails) ? s.testdetails : []
-    const rowspan     = tests.length || 1
+    
+    // Join Test names
+    const testNamesStr = tests.length > 0 
+      ? tests.map(t => t.testname || t.test_name || "N/A").join(", ")
+      : "—"
 
-    if (tests.length === 0) {
-      patientRows += `<tr class="patient-first">
-        <td class="center">${serialNo++}</td>
-        <td>${patientId}</td>
-        <td>${patientName}</td>
-        <td class="mono">${s.barcode || "N/A"}</td>
-        <td>—</td><td>—</td>
-      </tr>`
-    } else {
-      tests.forEach((t, ti) => {
-        const container = t.collection_container || "—"
-        const testName  = t.testname || t.test_name || "N/A"
-        if (ti === 0) {
-          patientRows += `<tr class="patient-first">
-            <td class="center" rowspan="${rowspan}">${serialNo++}</td>
-            <td rowspan="${rowspan}">${patientId}</td>
-            <td rowspan="${rowspan}">${patientName}</td>
-            <td class="mono" rowspan="${rowspan}">${s.barcode || "N/A"}</td>
-            <td>${testName}</td>
-            <td>${container}</td>
-          </tr>`
-        } else {
-          patientRows += `<tr class="patient-next">
-            <td>${testName}</td>
-            <td>${container}</td>
-          </tr>`
-        }
-      })
-    }
+    patientRows += `<tr class="patient-first">
+      <td class="center">${serialNo++}</td>
+      <td>${patientId}</td>
+      <td>${patientName}</td>
+      <td class="mono">${s.barcode || "N/A"}</td>
+      <td style="line-height:1.4;">${testNamesStr}</td>
+    </tr>`
   })
 
   const html = `<!DOCTYPE html>
@@ -249,10 +230,9 @@ const printBatchPDF = (batch, companies) => {
     <th style="width:90px">Patient ID</th>
     <th style="width:130px">Patient Name</th>
     <th style="width:100px">Barcode</th>
-    <th>Test Name</th>
-    <th style="width:160px">Collection Container</th>
+    <th>Test Names</th>
   </tr></thead>
-  <tbody>${patientRows || '<tr><td colspan="6" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
+  <tbody>${patientRows || '<tr><td colspan="5" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
 </table>
 
 <div class="sec-title">Container Summary</div>

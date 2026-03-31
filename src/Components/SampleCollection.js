@@ -182,7 +182,10 @@ const SampleCollection = () => {
     fetch(`${Labbaseurl}companies/`)
       .then(r => r.json())
       .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error)
+      .catch(console.error);
+    
+    // Initial fetch for all patients
+    fetchPatients();
   }, [Labbaseurl])
 
   const getLoggedInUserId = () => localStorage.getItem("user_id") || "system"
@@ -193,17 +196,13 @@ const SampleCollection = () => {
     setError("")
     setSuccess("")
 
-    if (!filters.company_id) {
-      setError("Please select a company to search patients.")
-      setLoading(false)
-      return
-    }
+    // Made company optional
 
     try {
       const queryParams = new URLSearchParams()
       queryParams.append("from_date",  filters.from_date)
       queryParams.append("to_date",    filters.to_date)
-      queryParams.append("company_id", filters.company_id)
+      if (filters.company_id) queryParams.append("company_id", filters.company_id)
       if (filters.employee_id) queryParams.append("employee_id", filters.employee_id)
       if (filters.barcode)     queryParams.append("barcode",     filters.barcode)
 
@@ -324,7 +323,7 @@ const SampleCollection = () => {
       const sampleData = {
         employee_id:  selectedPatient.employee_id,
         barcode:      selectedPatient.barcode,
-        company_id:   filters.company_id,
+        company_id:   selectedPatient.company_id, // Use patient's own company_id
         testdetails:  formattedTestDetails,
         collected_by: loggedInUserId,
         from_date:    filters.from_date,
@@ -332,11 +331,13 @@ const SampleCollection = () => {
         date:         filters.from_date,
       }
 
-      const response = await fetch(`${Labbaseurl}samples/`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(sampleData),
-      })
+      const response = await fetch(
+        `${Labbaseurl}samples/?company_id=${selectedPatient.company_id}&barcode=${selectedPatient.barcode}`,
+        {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(sampleData),
+        })
 
       if (!response.ok) {
         const err = await response.json()
@@ -377,7 +378,7 @@ const SampleCollection = () => {
               onChange={e => handleFilterChange("to_date", e.target.value)} />
           </FilterGroup>
           <FilterGroup>
-            <Label htmlFor="company_id">Company *</Label>
+            <Label htmlFor="company_id">Company</Label>
             <select
               id="company_id"
               value={filters.company_id}
@@ -388,7 +389,7 @@ const SampleCollection = () => {
               }}
               required
             >
-              <option value="">-- Select Company --</option>
+              <option value="">All Companies</option>
               {companies.map(c => (
                 <option key={c.company_id} value={c.company_id}>
                   {c.company_name} ({c.company_id})
@@ -437,6 +438,7 @@ const SampleCollection = () => {
               <TableRow>
                 <TableHead>Patient Details</TableHead>
                 <TableHead>Registration Date</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Barcode</TableHead>
                 <TableHead>Pending Tests</TableHead>
                 <TableHead>Action</TableHead>
@@ -453,6 +455,7 @@ const SampleCollection = () => {
                     )}
                   </TableCell>
                   <TableCell>{new Date(patient.date).toLocaleDateString("en-GB")}</TableCell>
+                  <TableCell>{patient.company_name || "-"}</TableCell>
                   <TableCell>{patient.barcode}</TableCell>
                   {/* pending_test_count is sent by updated backend */}
                   <TableCell>{patient.pending_test_count ?? patient.test_count ?? 0} pending</TableCell>

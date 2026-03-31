@@ -361,6 +361,15 @@ const ModalLabel = styled.label`
   margin-bottom: 0.3rem;
 `;
 
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+`;
+
 const ModalActions = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -427,6 +436,11 @@ const Packagecreation = () => {
   });
   const [savingCompany, setSavingCompany] = useState(false);
 
+  // Manage Company Modal state
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [allCompanies, setAllCompanies] = useState([]);
+  const [loadingAll, setLoadingAll] = useState(false);
+
   // CHC Test Modal state
   const [showTestModal, setShowTestModal] = useState(false);
   const [newTest, setNewTest] = useState({
@@ -473,6 +487,33 @@ const Packagecreation = () => {
   useEffect(() => {
     fetchCompanies();
   }, [Labbaseurl]);
+
+  const fetchAllCompanies = async () => {
+    setLoadingAll(true);
+    try {
+      const res = await axios.get(`${Labbaseurl}companies/?managed=true`);
+      setAllCompanies(res.data);
+    } catch (err) {
+      console.error("Error fetching all companies:", err);
+    } finally {
+      setLoadingAll(false);
+    }
+  };
+
+  const toggleCompanyStatus = async (company_id, currentStatus) => {
+    try {
+      const res = await axios.patch(`${Labbaseurl}companies/${company_id}/toggle/`, {
+        is_active: !currentStatus
+      });
+      if (res.status === 200) {
+        // Refresh local lists
+        fetchAllCompanies();
+        fetchCompanies();
+      }
+    } catch (err) {
+      alert("Failed to toggle status: " + err.message);
+    }
+  };
 
   // Open create company modal and fetch next ID
   const openCompanyModal = async () => {
@@ -656,6 +697,16 @@ const Packagecreation = () => {
       <Container>
         <Header>
           <Title>Create Company & Package</Title>
+          <div style={{ marginTop: '1rem' }}>
+            <SubmitButton 
+              type="button" 
+              onClick={() => { fetchAllCompanies(); setShowManageModal(true); }}
+              style={{ background: 'linear-gradient(145deg, #3F72AF 0%, #112D4E 100%)' }}
+            >
+              <i className="bi bi-gear-fill" style={{ marginRight: '8px' }}></i>
+              Manage Companies
+            </SubmitButton>
+          </div>
         </Header>
 
         <Card>
@@ -972,6 +1023,64 @@ const Packagecreation = () => {
                 {savingTest ? "Saving..." : "Create Test"}
               </SubmitButton>
             </ModalActions>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* Manage Company Modal */}
+      {showManageModal && (
+        <ModalOverlay onClick={() => setShowManageModal(false)}>
+          <ModalBox onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <ModalHeader>
+              <ModalTitle style={{ margin: 0 }}>Manage Companies Status</ModalTitle>
+              <CancelButton onClick={() => setShowManageModal(false)}>Close</CancelButton>
+            </ModalHeader>
+
+            {loadingAll ? (
+              <EmptyState>Loading companies...</EmptyState>
+            ) : (
+              <TableContainer style={{ marginTop: 0 }}>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Company ID</Th>
+                      <Th>Company Name</Th>
+                      <Th style={{ textAlign: 'center' }}>Status (Active / Inactive)</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allCompanies.map((c) => (
+                      <tr key={c.company_id}>
+                        <Td center>{c.company_id}</Td>
+                        <Td bold>{c.company_name}</Td>
+                        <Td center>
+                          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <input
+                                type="radio"
+                                name={`status_${c.company_id}`}
+                                checked={c.is_active === true}
+                                onChange={() => !c.is_active && toggleCompanyStatus(c.company_id, c.is_active)}
+                              />
+                              <span style={{ color: c.is_active ? '#10b981' : '#6b7280', fontWeight: c.is_active ? 700 : 400 }}>Active</span>
+                            </label>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <input
+                                type="radio"
+                                name={`status_${c.company_id}`}
+                                checked={c.is_active === false}
+                                onChange={() => c.is_active && toggleCompanyStatus(c.company_id, c.is_active)}
+                              />
+                              <span style={{ color: !c.is_active ? '#ef4444' : '#6b7280', fontWeight: !c.is_active ? 700 : 400 }}>Inactive</span>
+                            </label>
+                          </div>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            )}
           </ModalBox>
         </ModalOverlay>
       )}

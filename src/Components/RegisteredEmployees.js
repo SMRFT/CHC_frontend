@@ -215,20 +215,39 @@ export default function RegisteredEmployees() {
   const [employees, setEmployees] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
+
+  // Fetch Companies for dropdown
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get(`${Labbaseurl}companies/`);
+        setCompanies(res.data || []);
+      } catch (err) { console.error("Companies error:", err); }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
+
+  const fetchEmployees = async () => {
+    try {
+      let url = `${Labbaseurl}get_all_registered_employees/?`;
+      if (selectedCompany) url += `company_id=${selectedCompany}&`;
+      if (startDate) url += `from_date=${startDate.toISOString().split('T')[0]}&`;
+      if (endDate) url += `to_date=${endDate.toISOString().split('T')[0]}&`;
+      
+      const res = await axios.get(url);
+      setEmployees(res.data || []);
+    } catch (err) { console.error("Fetch Error:", err); }
+  };
 
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const res = await axios.get(`${Labbaseurl}get_all_registered_employees/`);
-        setEmployees(res.data || []);
-      } catch (err) { console.error("Fetch Error:", err); }
-    };
     fetchEmployees();
-  }, [Labbaseurl]);
+  }, [Labbaseurl, selectedCompany, startDate, endDate]);
 
   useEffect(() => {
     const delay = setTimeout(() => {
@@ -248,14 +267,9 @@ export default function RegisteredEmployees() {
         emp.barcode?.toLowerCase().includes(s) ||
         emp.department?.toLowerCase().includes(s);
 
-      const created = emp.created_date ? new Date(emp.created_date).setHours(0, 0, 0, 0) : null;
-      const start = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : null;
-      const end = endDate ? new Date(endDate).setHours(0, 0, 0, 0) : null;
-
-      const matchesDate = (!start || (created && created >= start)) && (!end || (created && created <= end));
-      return matchesSearch && matchesDate;
+      return matchesSearch;
     });
-  }, [employees, searchTerm, startDate, endDate]);
+  }, [employees, searchTerm]);
 
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
   const currentData = filteredEmployees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -265,9 +279,9 @@ export default function RegisteredEmployees() {
       "Employee ID": emp.employee_id,
       "Barcode": emp.barcode || "-",
       "Name": emp.employee_name,
+      "Company": emp.company_name || "-",
       "Gender": emp.gender,
       "Age": emp.age,
-      "DOB": emp.dob ? new Date(emp.dob).toLocaleDateString() : "-",
       "Department": emp.department,
       "Email": emp.email || "-",
       "Mobile": emp.mobile || "-",
@@ -301,8 +315,8 @@ export default function RegisteredEmployees() {
             <IconButton onClick={handleDownload} style={{ background: '#48BB78', color: '#fff' }}>
               <Download size={18} /> Export Excel
             </IconButton>
-            {(searchTerm || startDate || endDate) && (
-              <IconButton onClick={() => { setSearchInput(""); setStartDate(null); setEndDate(null); }} style={{ background: '#F56565', color: '#fff' }}>
+            {(searchTerm || startDate || endDate || selectedCompany) && (
+              <IconButton onClick={() => { setSearchInput(""); setStartDate(null); setEndDate(null); setSelectedCompany(""); }} style={{ background: '#F56565', color: '#fff' }}>
                 <FilterX size={18} /> Clear Filters
               </IconButton>
             )}
@@ -322,6 +336,19 @@ export default function RegisteredEmployees() {
             <Calendar size={18} color="#999" />
             <DatePicker selected={endDate} onChange={d => { setEndDate(d); setCurrentPage(1); }} placeholderText="To Date" dateFormat="dd/MM/yyyy" />
           </InputGroup>
+          <InputGroup>
+            <FilterX size={18} color="#999" />
+            <select 
+              value={selectedCompany} 
+              onChange={e => { setSelectedCompany(e.target.value); setCurrentPage(1); }}
+              style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', color: '#3F72AF' }}
+            >
+              <option value="">All Companies</option>
+              {companies.map(c => (
+                <option key={c.company_id} value={c.company_id}>{c.company_name}</option>
+              ))}
+            </select>
+          </InputGroup>
         </FiltersGrid>
 
         <TableContainer>
@@ -331,13 +358,13 @@ export default function RegisteredEmployees() {
                 <th>ID</th>
                 <th>Barcode</th>
                 <th>Name</th>
+                <th>Company</th>
                 <th>Gender</th>
                 <th>Age</th>
-                <th>DOB</th>
                 <th>Dept</th>
                 <th>Email</th>
                 <th>Mobile</th>
-                <th>Created</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>
@@ -346,9 +373,9 @@ export default function RegisteredEmployees() {
                   <Td data-label="Employee ID">{emp.employee_id}</Td>
                   <Td data-label="Barcode">{emp.barcode || "-"}</Td>
                   <Td data-label="Name" style={{ fontWeight: '600' }}>{emp.employee_name}</Td>
+                  <Td data-label="Company">{emp.company_name || "-"}</Td>
                   <Td data-label="Gender">{emp.gender}</Td>
                   <Td data-label="Age">{emp.age}</Td>
-                  <Td data-label="DOB">{emp.dob ? new Date(emp.dob).toLocaleDateString() : "-"}</Td>
                   <Td data-label="Dept">{emp.department || "N/A"}</Td>
                   <Td data-label="Email">{emp.email || "-"}</Td>
                   <Td data-label="Mobile">{emp.mobile || "-"}</Td>

@@ -331,6 +331,7 @@ const PaymentReport = () => {
                 <Th>Barcode</Th>
                 <Th>Patient Name</Th>
                 <Th>Amount</Th>
+                <Th>Payment Method</Th>
                 <Th>Transaction ID</Th>
               </tr>
             </thead>
@@ -342,6 +343,7 @@ const PaymentReport = () => {
                   <Td>{item.barcode}</Td>
                   <Td>{item.employee_name}</Td>
                   <Td>₹{item.netAmount}</Td>
+                  <Td>{item.payment_method}</Td>
                   <Td>{item.transaction_id || <span style={{ color: '#94a3b8' }}>N/A</span>}</Td>
                 </tr>
               )) : (
