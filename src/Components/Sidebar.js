@@ -243,7 +243,7 @@ export default function Sidebar() {
     { path: "/BatchGeneration", label: "Batch Generation", icon: <Box /> },
     { path: "/GeneratedBatch", label: "Generated Batch", icon: <ViewList /> },
     { path: "/Investigation", label: "Investigation", icon: <FileEarmarkMedical /> },
-    // { path: "/DoctorApprovalInvestigations", label: "Doctor Approval Investigations", icon: <CheckCircle /> },
+    { path: "/DoctorApprovalInvestigations", label: "Doctor Approval Investigations", icon: <CheckCircle /> },
     // { path: "/DoctorApprovalOphthalmology", label: "Doctor Approval Ophthalmology", icon: <CheckCircle /> },
     { path: "/RegisteredEmployees", label: "Employee List", icon: <People /> },
     { path: "/CHCReport", label: "CHC Report", icon: <People /> },

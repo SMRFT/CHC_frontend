@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styled from "styled-components";
 import "bootstrap-icons/font/bootstrap-icons.css";
-
+import { toast } from "react-toastify";
 // ===== Enhanced Styled Components =====
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -172,7 +172,7 @@ const TotalRow = styled.tr`
 `;
 
 const Input = styled.input`
-  width: 100%;
+  width: 90%;
   padding: 1rem;
   border-radius: 12px;
   border: 2px solid #e5e7eb;
@@ -411,6 +411,27 @@ const CancelButton = styled.button`
   &:hover { background: #d1d5db; }
 `;
 
+const RadioGroup = styled.div`
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+`;
+
+const RadioLabel = styled.label`
+  display: flex;
+  alignItems: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #374151;
+  font-weight: 500;
+
+  input {
+    width: auto;
+    cursor: pointer;
+  }
+`;
+
 const Packagecreation = () => {
   const [tests, setTests] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -441,6 +462,12 @@ const Packagecreation = () => {
   const [allCompanies, setAllCompanies] = useState([]);
   const [loadingAll, setLoadingAll] = useState(false);
 
+  const [packageGender, setPackageGender] = useState("Common");
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [companyPackages, setCompanyPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [editingPackageId, setEditingPackageId] = useState(null);
+
   // CHC Test Modal state
   const [showTestModal, setShowTestModal] = useState(false);
   const [newTest, setNewTest] = useState({
@@ -456,7 +483,7 @@ const Packagecreation = () => {
   });
   const [savingTest, setSavingTest] = useState(false);
 
-  const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
+  const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL?.trim();
 
   // Fetch tests
   const fetchTests = async () => {
@@ -497,6 +524,52 @@ const Packagecreation = () => {
       console.error("Error fetching all companies:", err);
     } finally {
       setLoadingAll(false);
+    }
+  };
+
+  const fetchCompanyPackages = async (companyId) => {
+    if (!companyId) return;
+    setLoadingPackages(true);
+    console.log("Calling Fetch: ", `${Labbaseurl}create_package/?company_id=${companyId}`);
+    try {
+      const response = await fetch(`${Labbaseurl}create_package/?company_id=${companyId}`);
+      const data = await response.json();
+      console.log("API Response Data:", data);
+      if (data.status === "success") {
+        setCompanyPackages(data.data || []);
+      } else {
+        console.error("API Fetch Failed with: ", data);
+      }
+    } catch (err) {
+      console.error("Error in fetchCompanyPackages:", err);
+    } finally {
+      setLoadingPackages(false);
+    }
+  };
+   
+  const handleUpdatePackage = async (pId, updatedName, updatedGender) => {
+    try {
+      const response = await fetch(`${Labbaseurl}create_package/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          package_id: pId,
+          company_id: selectedCompanyId,
+          package_name: updatedName,
+          gender: updatedGender
+        })
+      });
+      const data = await response.json();
+      if (data.status === "success") {
+        toast.success("Package updated successfully!");
+        fetchCompanyPackages(selectedCompanyId);
+        setEditingPackageId(null);
+      } else {
+        toast.error(data.message || "Update failed");
+      }
+    } catch (err) {
+      console.error("Patch Error:", err);
+      toast.error("Network error while updating");
     }
   };
 
@@ -664,6 +737,7 @@ const Packagecreation = () => {
         testname: row.name,
         test_id: row.test_id,
       })),
+      gender: packageGender,
     };
 
     try {
@@ -701,11 +775,27 @@ const Packagecreation = () => {
             <SubmitButton 
               type="button" 
               onClick={() => { fetchAllCompanies(); setShowManageModal(true); }}
-              style={{ background: 'linear-gradient(145deg, #3F72AF 0%, #112D4E 100%)' }}
+              style={{ background: 'linear-gradient(145deg, #3F72AF 0%, #112D4E 100%)', marginRight: '10px' }}
             >
               <i className="bi bi-gear-fill" style={{ marginRight: '8px' }}></i>
               Manage Companies
             </SubmitButton>
+            {/* <SubmitButton 
+              type="button" 
+              onClick={() => { 
+                console.log("Manage Packages clicked! selectedCompanyId:", selectedCompanyId);
+                if(!selectedCompanyId) { 
+                  alert("Please select a company first"); 
+                  return; 
+                }
+                fetchCompanyPackages(selectedCompanyId); 
+                setShowPackageModal(true); 
+              }}
+              style={{ background: 'linear-gradient(145deg, #3F72AF 0%, #112D4E 100%)' }}
+            >
+              <i className="bi bi-box-fill" style={{ marginRight: '8px' }}></i>
+              Manage Packages
+            </SubmitButton> */}
           </div>
         </Header>
 
@@ -744,17 +834,36 @@ const Packagecreation = () => {
               </CompanyRow>
             </FormGroup>
 
-            {/* Package Name */}
-            <FormGroup>
-              <FormLabel>Package Name</FormLabel>
-              <Input
-                type="text"
-                value={packageName}
-                onChange={(e) => setPackageName(e.target.value)}
-                placeholder="Enter package name"
-                required
-              />
-            </FormGroup>
+            {/* Package Name & Gender */}
+            <CompanyRow style={{ marginBottom: '1.5rem' }}>
+              <FormGroup style={{ flex: 2, marginBottom: 0 }}>
+                <FormLabel>Package Name</FormLabel>
+                <Input
+                  type="text"
+                  value={packageName}
+                  onChange={(e) => setPackageName(e.target.value)}
+                  placeholder="Enter package name"
+                  required
+                />
+              </FormGroup>
+              <FormGroup style={{ flex: 1, marginBottom: 0 }}>
+                <FormLabel>Package Gender</FormLabel>
+                <RadioGroup>
+                   {["Common", "Male", "Female"].map(g => (
+                     <RadioLabel key={g}>
+                       <input 
+                         type="radio" 
+                         name="packageGender" 
+                         value={g} 
+                         checked={packageGender === g}
+                         onChange={(e) => setPackageGender(e.target.value)}
+                       />
+                       {g}
+                     </RadioLabel>
+                   ))}
+                </RadioGroup>
+              </FormGroup>
+            </CompanyRow>
 
             {/* Test Selection */}
             <FormGroup>
@@ -1077,6 +1186,113 @@ const Packagecreation = () => {
                         </Td>
                       </tr>
                     ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+            )}
+          </ModalBox>
+        </ModalOverlay>
+      )}
+      {showPackageModal && (
+        <ModalOverlay onClick={() => setShowPackageModal(false)}>
+          <ModalBox onClick={(e) => e.stopPropagation()} style={{ maxWidth: '850px' }}>
+            <ModalHeader>
+              <ModalTitle>Manage Packages - {companies.find(c => c.company_id === selectedCompanyId)?.company_name}</ModalTitle>
+              <button 
+                onClick={() => setShowPackageModal(false)}
+                style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
+              >
+                &times;
+              </button>
+            </ModalHeader>
+
+            {loadingPackages ? (
+              <EmptyState>Loading packages...</EmptyState>
+            ) : companyPackages.length === 0 ? (
+              <EmptyState>No packages found for this company.</EmptyState>
+            ) : (
+              <TableContainer style={{ marginTop: 0 }}>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Package ID</Th>
+                      <Th>Package Name</Th>
+                      <Th>Gender</Th>
+                      <Th>Tests (Read-Only)</Th>
+                      <Th>Actions</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {companyPackages.map((pkg) => {
+                      const isEditing = editingPackageId === pkg.package_id;
+                      return (
+                        <tr key={pkg.package_id}>
+                          <Td center>{pkg.package_id}</Td>
+                          <Td>
+                            {isEditing ? (
+                              <Input 
+                                defaultValue={pkg.package_name} 
+                                id={`edit_name_${pkg.package_id}`} 
+                                style={{ padding: '0.5rem' }} 
+                              />
+                            ) : pkg.package_name}
+                          </Td>
+                          <Td center>
+                            {isEditing ? (
+                              <RadioGroup style={{ gap: '0.5rem', flexDirection: 'column' }}>
+                                {["Common", "Male", "Female"].map(g => (
+                                  <RadioLabel key={g} style={{ fontSize: '0.8rem' }}>
+                                    <input 
+                                      type="radio" 
+                                      name={`edit_gender_${pkg.package_id}`} 
+                                      value={g} 
+                                      defaultChecked={(pkg.gender || "Common") === g}
+                                      id={`radio_${pkg.package_id}_${g}`}
+                                    />
+                                    {g}
+                                  </RadioLabel>
+                                ))}
+                              </RadioGroup>
+                            ) : (pkg.gender || "Common")}
+                          </Td>
+                          <Td style={{ fontSize: '0.8rem' }}>
+                            <div style={{ maxHeight: '60px', overflowY: 'auto' }}>
+                              {(pkg.investigations || []).map(i => i.testname).join(', ')}
+                            </div>
+                          </Td>
+                          <Td center>
+                            {isEditing ? (
+                              <div style={{ display: 'flex', gap: '5px' }}>
+                                <SubmitButton 
+                                  onClick={() => {
+                                    const newName = document.getElementById(`edit_name_${pkg.package_id}`).value;
+                                    const selectedRadio = document.querySelector(`input[name="edit_gender_${pkg.package_id}"]:checked`);
+                                    const newGender = selectedRadio ? selectedRadio.value : (pkg.gender || "Common");
+                                    handleUpdatePackage(pkg.package_id, newName, newGender);
+                                  }}
+                                  style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                                >
+                                  Save
+                                </SubmitButton>
+                                <CancelButton 
+                                  onClick={() => setEditingPackageId(null)}
+                                  style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                                >
+                                  Cancel
+                                </CancelButton>
+                              </div>
+                            ) : (
+                              <SubmitButton 
+                                onClick={() => setEditingPackageId(pkg.package_id)}
+                                style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                              >
+                                Edit
+                              </SubmitButton>
+                            )}
+                          </Td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </Table>
               </TableContainer>

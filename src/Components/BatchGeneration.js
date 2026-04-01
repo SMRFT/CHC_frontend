@@ -16,7 +16,7 @@ const Header = styled.header`
   color: white; padding: 2rem; border-radius: 1rem;
   margin-bottom: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center;
 `
-const Title    = styled.h1`font-size:2rem;font-weight:bold;margin-bottom:0.5rem;color:white;`
+const Title = styled.h1`font-size:2rem;font-weight:bold;margin-bottom:0.5rem;color:white;`
 const Subtitle = styled.p`font-size:1.125rem;opacity:0.9;font-weight:normal;color:white;`
 const Card = styled.div`
   background:white; border-radius:1rem; padding:2rem; margin-bottom:2rem;
@@ -29,11 +29,11 @@ const SectionTitle = styled.h2`
     background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%); border-radius:2px; }
 `
 const FilterSection = styled.div`display:flex;gap:1.5rem;align-items:end;flex-wrap:wrap;margin-bottom:1.5rem;`
-const FilterGroup   = styled.div`display:flex;flex-direction:column;gap:0.5rem;min-width:200px;`
-const Label         = styled.label`font-weight:500;color:#4a5568;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.5px;`
-const Input         = styled.input`
+const FilterGroup = styled.div`display:flex;flex-direction:column;gap:0.5rem;min-width:200px;`
+const Label = styled.label`font-weight:500;color:#4a5568;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.5px;`
+const Input = styled.input`
   padding:0.75rem; border:2px solid #e2e8f0; border-radius:0.5rem; font-size:1rem;
-  background:${p=>p.readOnly?"#f7fafc":"white"}; transition:all 0.3s ease;
+  background:${p => p.readOnly ? "#f7fafc" : "white"}; transition:all 0.3s ease;
   &:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1);outline:none;}
   &:disabled{background-color:#f7fafc;cursor:not-allowed;}
 `
@@ -44,14 +44,14 @@ const Select = styled.select`
 `
 const Button = styled.button`
   padding:0.75rem 1.5rem;
-  background:${p=>p.disabled?"#cbd5e0":"linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)"};
+  background:${p => p.disabled ? "#cbd5e0" : "linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)"};
   color:white; border:none; border-radius:0.5rem; font-size:1rem; font-weight:600;
   text-transform:uppercase; letter-spacing:0.5px;
-  cursor:${p=>p.disabled?"not-allowed":"pointer"}; transition:all 0.3s ease;
+  cursor:${p => p.disabled ? "not-allowed" : "pointer"}; transition:all 0.3s ease;
   &:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 25px rgba(0,0,0,0.15);}
 `
 const CreateBatchButton = styled(Button)`
-  background:${p=>p.disabled?"#cbd5e0":"linear-gradient(135deg,#38a169 0%,#2f855a 100%)"};
+  background:${p => p.disabled ? "#cbd5e0" : "linear-gradient(135deg,#38a169 0%,#2f855a 100%)"};
   font-size:1.125rem; padding:1rem 2rem;
 `
 const DownloadButton = styled(Button)`
@@ -65,9 +65,9 @@ const ViewTestsButton = styled.button`
   cursor:pointer; transition:all 0.2s ease;
   &:hover{opacity:0.88;transform:translateY(-1px);}
 `
-const Table       = styled.table`width:100%;border-collapse:collapse;background:white;border-radius:0.5rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
+const Table = styled.table`width:100%;border-collapse:collapse;background:white;border-radius:0.5rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
 const TableHeader = styled.thead`background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%);color:white;`
-const TableRow    = styled.tr`
+const TableRow = styled.tr`
   &:nth-child(even){background-color:#f7fafc;}
   &:hover{background-color:rgba(102,126,234,0.05);transition:background-color 0.3s ease;}
 `
@@ -76,32 +76,32 @@ const TableCell = styled.td`padding:1rem;border-bottom:1px solid #e2e8f0;font-si
 const StatusBadge = styled.span`
   padding:0.25rem 0.5rem;border-radius:9999px;font-size:0.75rem;font-weight:600;
   text-transform:uppercase;letter-spacing:0.5px;color:white;
-  background:${p=>p.status==="transferred"
-    ?"linear-gradient(135deg,#38a169 0%,#2f855a 100%)"
-    :p.status==="pending"
-    ?"linear-gradient(135deg,#ed8936 0%,#dd6b20 100%)"
-    :"#cbd5e0"};
+  background:${p => p.status === "transferred"
+    ? "linear-gradient(135deg,#38a169 0%,#2f855a 100%)"
+    : p.status === "pending"
+      ? "linear-gradient(135deg,#ed8936 0%,#dd6b20 100%)"
+      : "#cbd5e0"};
 `
 const ContainerTag = styled.span`
   display:inline-block; background:#ebf8ff; border:1px solid #90cdf4;
   color:#2b6cb0; border-radius:4px; padding:2px 7px;
   font-size:0.75rem; font-weight:600; margin:2px 2px 0 0;
 `
-const BatchSummary  = styled.div`background:linear-gradient(135deg,rgba(102,126,234,0.1) 0%,rgba(118,75,162,0.1) 100%);border:2px solid #667eea;border-radius:1rem;padding:2rem;margin:2rem 0;`
-const SummaryGrid   = styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;margin:1.5rem 0;`
-const SummaryItem   = styled.div`text-align:center;padding:1.5rem;background:white;border-radius:0.5rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
-const SummaryValue  = styled.div`font-size:1.5rem;font-weight:bold;color:#667eea;margin-bottom:0.5rem;word-break:break-word;`
-const SummaryLabel  = styled.div`font-size:0.875rem;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;`
+const BatchSummary = styled.div`background:linear-gradient(135deg,rgba(102,126,234,0.1) 0%,rgba(118,75,162,0.1) 100%);border:2px solid #667eea;border-radius:1rem;padding:2rem;margin:2rem 0;`
+const SummaryGrid = styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;margin:1.5rem 0;`
+const SummaryItem = styled.div`text-align:center;padding:1.5rem;background:white;border-radius:0.5rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
+const SummaryValue = styled.div`font-size:1.5rem;font-weight:bold;color:#667eea;margin-bottom:0.5rem;word-break:break-word;`
+const SummaryLabel = styled.div`font-size:0.875rem;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;`
 const ContainerSummary = styled.div`background:#f7fafc;border-radius:0.5rem;padding:1.5rem;margin:1.5rem 0;`
-const ContainerGrid    = styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-top:1rem;`
-const ContainerItem    = styled.div`background:white;padding:1rem;border-radius:0.5rem;text-align:center;border:1px solid #bee3f8;box-shadow:0 1px 3px rgba(0,0,0,0.08);`
-const ContainerName    = styled.div`font-weight:600;color:#2b6cb0;margin-bottom:0.25rem;font-size:0.875rem;`
-const ContainerCount   = styled.div`font-size:1.25rem;font-weight:bold;color:#3182ce;`
-const Modal           = styled.div`position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);`
-const ModalContent    = styled.div`background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.25);`
-const ModalTitle      = styled.h3`margin:0 0 1.5rem 0;color:#1a202c;font-size:1.25rem;`
-const ModalText       = styled.p`margin:1rem 0;color:#4a5568;line-height:1.6;`
-const ButtonGroup     = styled.div`display:flex;gap:1rem;justify-content:center;margin-top:2rem;`
+const ContainerGrid = styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-top:1rem;`
+const ContainerItem = styled.div`background:white;padding:1rem;border-radius:0.5rem;text-align:center;border:1px solid #bee3f8;box-shadow:0 1px 3px rgba(0,0,0,0.08);`
+const ContainerName = styled.div`font-weight:600;color:#2b6cb0;margin-bottom:0.25rem;font-size:0.875rem;`
+const ContainerCount = styled.div`font-size:1.25rem;font-weight:bold;color:#3182ce;`
+const Modal = styled.div`position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);`
+const ModalContent = styled.div`background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.25);`
+const ModalTitle = styled.h3`margin:0 0 1.5rem 0;color:#1a202c;font-size:1.25rem;`
+const ModalText = styled.p`margin:1rem 0;color:#4a5568;line-height:1.6;`
+const ButtonGroup = styled.div`display:flex;gap:1rem;justify-content:center;margin-top:2rem;`
 const SecondaryButton = styled(Button)`background:#cbd5e0;color:#4a5568;&:hover:not(:disabled){background:#a0aec0;}`
 const Message = styled.div`
   padding:1rem;border-radius:0.5rem;margin:1rem 0;font-weight:500;
@@ -116,12 +116,12 @@ const EmptyState = styled.div`
 `
 const TestsModalOverlay = styled(Modal)``
 const TestsModalContent = styled(ModalContent)`max-width:640px;text-align:left;`
-const TestsTable        = styled.table`width:100%;border-collapse:collapse;margin-top:1rem;font-size:0.875rem;`
-const TestsTableHead    = styled.thead`background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%);color:white;`
-const TestsTableRow     = styled.tr`&:nth-child(even){background:#f7fafc;}`
-const TestsTableTh      = styled.th`padding:0.6rem 0.9rem;text-align:left;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;`
-const TestsTableTd      = styled.td`padding:0.6rem 0.9rem;border-bottom:1px solid #e2e8f0;color:#4a5568;`
-const CompanyBadge      = styled.div`
+const TestsTable = styled.table`width:100%;border-collapse:collapse;margin-top:1rem;font-size:0.875rem;`
+const TestsTableHead = styled.thead`background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%);color:white;`
+const TestsTableRow = styled.tr`&:nth-child(even){background:#f7fafc;}`
+const TestsTableTh = styled.th`padding:0.6rem 0.9rem;text-align:left;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;`
+const TestsTableTd = styled.td`padding:0.6rem 0.9rem;border-bottom:1px solid #e2e8f0;color:#4a5568;`
+const CompanyBadge = styled.div`
   display:inline-flex;align-items:center;gap:0.5rem;
   background:linear-gradient(135deg,rgba(63,114,175,0.1) 0%,rgba(17,45,78,0.1) 100%);
   border:1px solid #3F72AF;border-radius:0.5rem;padding:0.5rem 1rem;
@@ -135,7 +135,7 @@ const generateBarcodeSVG = (text) => {
   const charWidths = [3, 2, 3, 2, 3, 2, 4, 1, 3, 2]
   for (let i = 0; i < (text || "").length * 6; i++) {
     const w = charWidths[i % 10]
-    bars.push(`<rect x="${x}" y="0" width="${w}" height="48" fill="${i%2===0?"#000":"#fff"}"/>`)
+    bars.push(`<rect x="${x}" y="0" width="${w}" height="48" fill="${i % 2 === 0 ? "#000" : "#fff"}"/>`)
     x += w + 1
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48">${bars.join("")}</svg>`
@@ -156,22 +156,35 @@ const getUniqueContainers = (testdetails) => {
 // ─── Component ───────────────────────────────────────────────────────────────
 const BatchGeneration = () => {
   const [filters, setFilters] = useState({
-    from_date:  new Date().toISOString().split("T")[0],
-    to_date:    new Date().toISOString().split("T")[0],
+    from_date: new Date().toISOString().split("T")[0],
+    to_date: new Date().toISOString().split("T")[0],
     company_id: "",
   })
-  const [companies,          setCompanies]          = useState([])
+  const [companies, setCompanies] = useState([])
   const [transferredSamples, setTransferredSamples] = useState([])
-  const [loadingSamples,     setLoadingSamples]     = useState(false)
-  const [sampleError,        setSampleError]        = useState(null)
-  const [showConfirmModal,   setShowConfirmModal]   = useState(false)
-  const [loadingBatch,       setLoadingBatch]       = useState(false)
-  const [batchError,         setBatchError]         = useState(null)
-  const [batchSuccess,       setBatchSuccess]       = useState(null)
-  const [createdBatchData,   setCreatedBatchData]   = useState(null)
-  const [viewPatient,        setViewPatient]        = useState(null)
+  const [loadingSamples, setLoadingSamples] = useState(false)
+  const [sampleError, setSampleError] = useState(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [loadingBatch, setLoadingBatch] = useState(false)
+  const [batchError, setBatchError] = useState(null)
+  const [batchSuccess, setBatchSuccess] = useState(null)
+  const [createdBatchData, setCreatedBatchData] = useState(null)
+  const [viewPatient, setViewPatient] = useState(null)
+  const [packages, setPackages] = useState([])
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
+
+  // ── Load packages for resolution ──────────────────────────────────────────
+  useEffect(() => {
+    if (filters.company_id) {
+      fetch(`${Labbaseurl}create_package/?company_id=${filters.company_id}`)
+        .then(r => r.json())
+        .then(data => setPackages(Array.isArray(data) ? data : (data.data || [])))
+        .catch(console.error);
+    } else {
+      setPackages([]);
+    }
+  }, [filters.company_id, Labbaseurl]);
 
   // ── Load companies ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -179,7 +192,7 @@ const BatchGeneration = () => {
       .then(r => r.json())
       .then(data => setCompanies(Array.isArray(data) ? data : []))
       .catch(console.error);
-    
+
     // Initial fetch
     fetchTransferredSamples();
   }, [Labbaseurl])
@@ -194,11 +207,11 @@ const BatchGeneration = () => {
     try {
       const queryParams = new URLSearchParams({
         samplestatus: "Transferred",
-        from_date:    filters.from_date,
-        to_date:      filters.to_date,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
       })
       if (filters.company_id) queryParams.append("company_id", filters.company_id)
-      
+
       const response = await fetch(`${Labbaseurl}samples/transferred/?${queryParams.toString()}`)
       if (!response.ok) {
         const err = await response.json()
@@ -235,21 +248,25 @@ const BatchGeneration = () => {
       for (const s of transferredSamples) {
         if (!seen.has(s.barcode)) {
           seen.add(s.barcode)
-          batchDetails.push({ barcode: s.barcode, company_id: s.company_id })
+          batchDetails.push({
+            barcode: s.barcode,
+            company_id: s.company_id,
+            package_id: s.package_id
+          })
         }
       }
       const payload = {
         batch_details: batchDetails,
-        received:      false,
-        remarks:       null,
-        company_id:    filters.company_id || (transferredSamples.length > 0 ? transferredSamples[0].company_id : ""),
-        company_name:  selectedCompany?.company_name || (transferredSamples.length > 0 ? transferredSamples[0].company_name : ""),
+        received: false,
+        remarks: null,
+        company_id: filters.company_id || (transferredSamples.length > 0 ? transferredSamples[0].company_id : ""),
+        company_name: selectedCompany?.company_name || (transferredSamples.length > 0 ? transferredSamples[0].company_name : ""),
       }
 
       const response = await fetch(`${Labbaseurl}batch/`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       })
       if (!response.ok) {
         const err = await response.json()
@@ -259,7 +276,7 @@ const BatchGeneration = () => {
       setBatchSuccess("Batch created successfully!")
       setCreatedBatchData({
         ...data,
-        samples:      transferredSamples,
+        samples: transferredSamples,
         company_name: selectedCompany?.company_name || data.company_name || "CHC",
       })
       setTransferredSamples([])
@@ -275,46 +292,62 @@ const BatchGeneration = () => {
     if (!createdBatchData) return
 
     const {
-      batch_number   = "N/A",
-      company_name   = "CHC",
-      shipment_to    = "Shanmuga Reference Lab",
+      batch_number = "N/A",
+      company_name = "CHC",
+      shipment_to = "Shanmuga Reference Lab",
       // specimen_count here stores container counts from backend
       specimen_count: containerCounts = [],
       samples: batchSamples = [],
     } = createdBatchData
 
-    const now      = new Date()
-    const dateStr  = now.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })
-    const timeStr  = now.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" })
+    const now = new Date()
+    const dateStr = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 
-    const barcodeSvg     = generateBarcodeSVG(batch_number)
+    const barcodeSvg = generateBarcodeSVG(batch_number)
     const barcodeDataUrl = `data:image/svg+xml;base64,${btoa(barcodeSvg)}`
 
     // Container summary rows
     const containerRows = containerCounts.map(c =>
       `<tr><td>${c.specimen_type}</td><td class="center">${c.count}</td></tr>`
     ).join("")
-    const totalContainers = containerCounts.reduce((a,b)=>a+b.count, 0)
+    const totalContainers = containerCounts.reduce((a, b) => a + b.count, 0)
 
-    // Patient rows — joined test names, removed container column
+    // Resolve package names from IDs
+    const uniquePackageIDs = [...new Set(batchSamples.map(s => s.package_id).filter(Boolean))];
+    const packageInfoNames = uniquePackageIDs.map(id => {
+      // 1. Try to find it in batchSamples first
+      const sample = batchSamples.find(s => s.package_id === id);
+      if (sample && sample.package_name) return sample.package_name;
+
+      // 2. Fallback to common packages master list
+      const pkg = packages.find(p => p.package_id === id || p._id === id);
+      return pkg ? pkg.package_name : id;
+    });
+    const packageSummaryStr = packageInfoNames.length > 0 ? packageInfoNames.join(", ") : "Standard / Mixed";
+
+    // Patient rows — joined unique container names
     let patientRows = ""
-    let serialNo    = 1
+    let serialNo = 1
 
     batchSamples.forEach((s) => {
-      const patientId   = s.patient_details?.patient_id   || s.patient_id   || "N/A"
-      const patientName = s.patient_details?.patient_name || s.patientname  || s.patient_name || "N/A"
-      const tests       = Array.isArray(s.testdetails) ? s.testdetails : []
-      
-      const testNamesStr = tests.length > 0 
-        ? tests.map(t => t.testname || t.test_name || "N/A").join(", ")
-        : "—"
+      const patientId = s.patient_details?.patient_id || s.patient_id || "N/A"
+      const patientName = s.patient_details?.patient_name || s.patientname || s.patient_name || "N/A"
+      const tests = Array.isArray(s.testdetails) ? s.testdetails : []
+
+      const containers = tests
+        .map(t => t.collection_container)
+        .filter(c => c && c !== "N/A" && c !== "—" && c.trim() !== "");
+
+      const uniqueContainers = [...new Set(containers)];
+      const containerStr = uniqueContainers.length > 0 ? uniqueContainers.join(", ") : "—"
 
       patientRows += `<tr class="patient-first">
         <td class="center">${serialNo++}</td>
         <td>${patientId}</td>
         <td>${patientName}</td>
-        <td class="mono">${s.barcode||"N/A"}</td>
-        <td style="line-height:1.4;">${testNamesStr}</td>
+        <td class="mono">${s.barcode || "N/A"}</td>
+        <td style="line-height:1.4; font-weight: 500;">${containerStr}</td>
       </tr>`
     })
 
@@ -363,6 +396,7 @@ const BatchGeneration = () => {
     <div class="meta-row"><span class="lbl">Shipment From</span>: ${company_name}</div>
     <div class="meta-row"><span class="lbl">Shipment To</span>: ${shipment_to}</div>
     <div class="meta-row"><span class="lbl">Total Patients</span>: ${batchSamples.length}</div>
+    <div class="meta-row"><span class="lbl" style="white-space: nowrap;">Packages Info</span>: ${packageSummaryStr}</div>
   </div>
   <div class="meta-right">
     <img src="${barcodeDataUrl}" width="200" height="48" alt="barcode" style="display:block;margin-bottom:4px"/>
@@ -375,11 +409,11 @@ const BatchGeneration = () => {
   <thead><tr>
     <th class="center" style="width:32px">#</th>
     <th style="width:90px">Patient ID</th>
-    <th style="width:130px">Patient Name</th>
+    <th style="width:130px , white-space: nowrap;">Patient Name</th>
     <th style="width:100px">Barcode</th>
-    <th>Test Names</th>
+    <th>Collection Containers</th>
   </tr></thead>
-  <tbody>${patientRows||'<tr><td colspan="5" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
+  <tbody>${patientRows || '<tr><td colspan="5" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
 </table>
 
 <div class="sec-title">Container Summary</div>
@@ -387,7 +421,7 @@ const BatchGeneration = () => {
   <table>
     <thead><tr><th>Collection Container</th><th class="center" style="width:80px">Count</th></tr></thead>
     <tbody>
-      ${containerRows||'<tr><td colspan="2" class="center" style="color:#888">No container data</td></tr>'}
+      ${containerRows || '<tr><td colspan="2" class="center" style="color:#888">No container data</td></tr>'}
       <tr class="total-row"><td>Total</td><td class="center">${totalContainers}</td></tr>
     </tbody>
   </table>
@@ -446,12 +480,12 @@ const BatchGeneration = () => {
           {selectedCompany && (
             <CompanyBadge>
               🏢 {selectedCompany.company_name}
-              <span style={{ fontWeight:400, color:"#718096", marginLeft:4 }}>
+              <span style={{ fontWeight: 400, color: "#718096", marginLeft: 4 }}>
                 ({selectedCompany.company_id})
               </span>
             </CompanyBadge>
           )}
-          {sampleError    && <Message className="error">{sampleError}</Message>}
+          {sampleError && <Message className="error">{sampleError}</Message>}
           {loadingSamples && <Message className="loading">Loading samples...</Message>}
         </Card>
 
@@ -466,10 +500,11 @@ const BatchGeneration = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Patient ID</TableHead>
                   <TableHead>Patient Name</TableHead>
+                  <TableHead>Package Name</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Tests</TableHead>
+                  <TableHead>Containers</TableHead>
                 </TableRow>
               </TableHeader>
               <tbody>
@@ -481,19 +516,24 @@ const BatchGeneration = () => {
                         {sample.registrationDate
                           ? new Date(sample.registrationDate).toLocaleDateString("en-GB")
                           : sample.transferred_date
-                          ? new Date(sample.transferred_date).toLocaleDateString("en-GB")
-                          : "—"}
+                            ? new Date(sample.transferred_date).toLocaleDateString("en-GB")
+                            : "—"}
                       </TableCell>
-                      <TableCell style={{ fontWeight:700, color:"#1e293b" }}>
+                      <TableCell style={{ fontWeight: 700, color: "#1e293b" }}>
                         {sample.patient_details?.patient_id || sample.patient_id || "—"}
                       </TableCell>
-                      <TableCell style={{ fontWeight:600 }}>
+                      <TableCell style={{ fontWeight: 600 }}>
                         {sample.patient_details?.patient_name || sample.patientname || sample.patient_name || "—"}
+                      </TableCell>
+                      <TableCell style={{ fontWeight: 500, color: "#4a5568" }}>
+                        {sample.package_name || packages.find(p => p.package_id === sample.package_id || p._id === sample.package_id)?.package_name || sample.package_id || "—"}
                       </TableCell>
                       <TableCell>{sample.company_name || sample.company_id || "—"}</TableCell>
                       <TableCell>
-                        <span style={{ fontFamily:"Courier New,monospace", fontSize:"0.82rem",
-                          background:"#f1f5f9", padding:"3px 8px", borderRadius:4 }}>
+                        <span style={{
+                          fontFamily: "Courier New,monospace", fontSize: "0.82rem",
+                          background: "#f1f5f9", padding: "3px 8px", borderRadius: 4
+                        }}>
                           {sample.barcode}
                         </span>
                       </TableCell>
@@ -501,16 +541,23 @@ const BatchGeneration = () => {
                         <StatusBadge status="transferred">Transferred</StatusBadge>
                       </TableCell>
                       <TableCell>
-                        <ViewTestsButton onClick={() => setViewPatient(sample)}>
-                          View Tests ({Array.isArray(sample.testdetails) ? sample.testdetails.length : 0})
-                        </ViewTestsButton>
+                        {(() => {
+                          const tests = Array.isArray(sample.testdetails) ? sample.testdetails : [];
+                          const uniqueC = [...new Set(tests
+                            .map(t => t.collection_container)
+                            .filter(c => c && c !== "N/A" && c !== "—" && c.trim() !== "")
+                          )];
+                          return uniqueC.length > 0
+                            ? uniqueC.map((c, i) => <ContainerTag key={i}>{c}</ContainerTag>)
+                            : "—";
+                        })()}
                       </TableCell>
                     </TableRow>
                   )
                 })}
               </tbody>
             </Table>
-            <div style={{ marginTop:"20px", textAlign:"center" }}>
+            <div style={{ marginTop: "20px", textAlign: "center" }}>
               <CreateBatchButton onClick={handleBatchCreation}>Create Batch</CreateBatchButton>
             </div>
           </Card>
@@ -555,10 +602,17 @@ const BatchGeneration = () => {
                 Tests for{" "}
                 {viewPatient.patient_details?.patient_name ||
                   viewPatient.patientname || viewPatient.patient_name || "Patient"}
-                <span style={{ fontSize:"0.85rem", color:"#718096", fontWeight:400, marginLeft:8 }}>
+                <span style={{ fontSize: "0.85rem", color: "#718096", fontWeight: 400, marginLeft: 8 }}>
                   ({viewPatient.barcode})
                 </span>
               </ModalTitle>
+
+              <div style={{ marginBottom: "16px", background: "#f1f5f9", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Health Package</div>
+                <div style={{ fontSize: "1rem", color: "#1e293b", fontWeight: 600, marginTop: "4px" }}>
+                  {viewPatient.package_name || packages.find(p => p.package_id === viewPatient.package_id || p._id === viewPatient.package_id)?.package_name || viewPatient.package_id || "Standard / Mixed"}
+                </div>
+              </div>
 
               {/* Unique containers summary at the top of modal */}
 
@@ -566,27 +620,37 @@ const BatchGeneration = () => {
                 <TestsTable>
                   <TestsTableHead>
                     <tr>
-                      <TestsTableTh>#</TestsTableTh>
-                      <TestsTableTh>Test Name</TestsTableTh>
-                      <TestsTableTh>Collection Container</TestsTableTh>
+                      <TestsTableTh style={{ width: "50px" }}>#</TestsTableTh>
+                      <TestsTableTh>Collection Containers</TestsTableTh>
                     </tr>
                   </TestsTableHead>
                   <tbody>
-                    {viewPatient.testdetails.map((test, i) => (
-                      <TestsTableRow key={i}>
-                        <TestsTableTd>{i + 1}</TestsTableTd>
-                        <TestsTableTd>{test.testname || test.test_name || test}</TestsTableTd>
-                        <TestsTableTd>
-                          {test.collection_container && test.collection_container !== "N/A"
-                            ? <ContainerTag>{test.collection_container}</ContainerTag>
-                            : "—"}
-                        </TestsTableTd>
-                      </TestsTableRow>
-                    ))}
+                    {(() => {
+                      const uniqueC = [...new Set(viewPatient.testdetails
+                        .map(t => t.collection_container)
+                        .filter(c => c && c !== "N/A" && c !== "—" && c.trim() !== "")
+                      )];
+                      return uniqueC.length > 0 ? (
+                        uniqueC.map((c, i) => (
+                          <TestsTableRow key={i}>
+                            <TestsTableTd>{i + 1}</TestsTableTd>
+                            <TestsTableTd>
+                              <ContainerTag style={{ fontSize: "0.85rem", padding: "4px 10px" }}>
+                                {c}
+                              </ContainerTag>
+                            </TestsTableTd>
+                          </TestsTableRow>
+                        ))
+                      ) : (
+                        <TestsTableRow>
+                          <TestsTableTd colSpan="2" style={{ textAlign: "center" }}>—</TestsTableTd>
+                        </TestsTableRow>
+                      );
+                    })()}
                   </tbody>
                 </TestsTable>
               ) : (
-                <ModalText style={{ textAlign:"center", color:"#718096" }}>
+                <ModalText style={{ textAlign: "center", color: "#718096" }}>
                   No test details available.
                 </ModalText>
               )}
@@ -597,7 +661,7 @@ const BatchGeneration = () => {
           </TestsModalOverlay>
         )}
 
-        {batchError   && <Message className="error">{batchError}</Message>}
+        {batchError && <Message className="error">{batchError}</Message>}
         {batchSuccess && <Message className="success">{batchSuccess}</Message>}
 
         {/* Batch summary after creation */}
@@ -620,13 +684,13 @@ const BatchGeneration = () => {
                   <SummaryLabel>Created Date</SummaryLabel>
                 </SummaryItem>
                 <SummaryItem>
-                  <SummaryValue style={{ fontSize:"1rem" }}>
+                  <SummaryValue style={{ fontSize: "1rem" }}>
                     {createdBatchData.company_name || "CHC"}
                   </SummaryValue>
                   <SummaryLabel>Company</SummaryLabel>
                 </SummaryItem>
                 <SummaryItem>
-                  <SummaryValue style={{ fontSize:"1rem" }}>Shanmuga Reference Lab</SummaryValue>
+                  <SummaryValue style={{ fontSize: "1rem" }}>Shanmuga Reference Lab</SummaryValue>
                   <SummaryLabel>Shipment To</SummaryLabel>
                 </SummaryItem>
               </SummaryGrid>
@@ -634,7 +698,7 @@ const BatchGeneration = () => {
               {/* Container summary — replaces specimen summary */}
               {createdBatchData.specimen_count?.length > 0 && (
                 <ContainerSummary>
-                  <h4 style={{ marginBottom:"0.5rem", color:"#2b6cb0" }}>
+                  <h4 style={{ marginBottom: "0.5rem", color: "#2b6cb0" }}>
                     Container Summary
                   </h4>
                   <ContainerGrid>
@@ -647,14 +711,14 @@ const BatchGeneration = () => {
                     <ContainerItem>
                       <ContainerName>Total</ContainerName>
                       <ContainerCount>
-                        {createdBatchData.specimen_count.reduce((s,x)=>s+x.count, 0)}
+                        {createdBatchData.specimen_count.reduce((s, x) => s + x.count, 0)}
                       </ContainerCount>
                     </ContainerItem>
                   </ContainerGrid>
                 </ContainerSummary>
               )}
 
-              <div style={{ textAlign:"center", marginTop:"20px" }}>
+              <div style={{ textAlign: "center", marginTop: "20px" }}>
                 <DownloadButton onClick={downloadPDF}>📄 Download / Print PDF Report</DownloadButton>
               </div>
             </BatchSummary>

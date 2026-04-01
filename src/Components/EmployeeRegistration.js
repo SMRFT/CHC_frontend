@@ -443,6 +443,7 @@ const EmployeeRegistration = () => {
     mobile: "",
     dob: "",
     doj: "",
+    experience: "",
     designation: "",
     employee_type: "",
     registration_datetime: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
@@ -546,7 +547,8 @@ const EmployeeRegistration = () => {
       .filter(c => c && c.trim() !== "" && c.toLowerCase() !== "n/a")
     )];
 
-    const containersToPrint = [...uniqueContainers, "Barcode"];
+    const extraBarcodes = Array(5).fill("");
+    const containersToPrint = [...uniqueContainers, ...extraBarcodes];
     
     // Create a temporary container for barcodes to generate their bases
     const tempDiv = document.createElement("div");
@@ -682,6 +684,17 @@ const EmployeeRegistration = () => {
     setScanning(false);
   };
 
+  const formatDate = (dateField) => {
+    if (!dateField) return "";
+    if (typeof dateField === 'object' && dateField.$date) {
+      return dateField.$date.split('T')[0];
+    }
+    if (typeof dateField === 'string' && dateField.includes('T')) {
+      return dateField.split('T')[0];
+    }
+    return dateField;
+  };
+
   const calculateAge = (dobString) => {
     if (!dobString) return "";
     const today = new Date();
@@ -702,6 +715,29 @@ const EmployeeRegistration = () => {
         ...prev,
         dob: dob,
         age: computedAge !== "" ? computedAge : prev.age
+    }));
+  };
+
+  const calculateExperience = (dojString) => {
+    if (!dojString) return "";
+    const joinDate = new Date(dojString);
+    const today = new Date();
+    if (isNaN(joinDate.getTime())) return "";
+    let years = today.getFullYear() - joinDate.getFullYear();
+    const monthDiff = today.getMonth() - joinDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < joinDate.getDate())) {
+      years--;
+    }
+    return years >= 0 ? years : 0;
+  };
+
+  const handleDOJChange = (e) => {
+    const doj = e.target.value;
+    const computedExp = calculateExperience(doj);
+    setFormData(prev => ({
+        ...prev,
+        doj: doj,
+        experience: computedExp !== "" ? computedExp : prev.experience
     }));
   };
 
@@ -764,10 +800,11 @@ const EmployeeRegistration = () => {
       employee_id: emp.employee_id || "",
       gender: emp.gender || "Female",
       age: emp.age || "",
-      dob: emp.dob || "",
-      doj: emp.doj || "",
+      dob: formatDate(emp.dob),
+      doj: formatDate(emp.doj),
+      experience: emp.experience || calculateExperience(formatDate(emp.doj)) || "",
       designation: emp.designation || "",
-      employee_type: emp.employee_type || "",
+      employee_type: (typeof emp.employee_type === 'object' ? '' : (emp.employee_type || "")),
       company_id: emp.company_id || prev.company_id,
       company_name: emp.company_name || prev.company_name,
       department: emp.department || "",
@@ -830,12 +867,16 @@ const EmployeeRegistration = () => {
         setPackages(data.data);
 
         // ✅ Auto-select if only one package exists
-        if (data.data && data.data.length === 1) {
-          const singlePackage = data.data[0];
-          setFormData(prev => ({
-            ...prev,
-            package_id: singlePackage._id
-          }));
+        if (data.data && data.data.length > 0) {
+          const genderMatched = data.data.filter(p => {
+             const pg = p.gender || "Common";
+             return pg === "Common" || pg === formData.gender;
+          });
+
+          if (genderMatched.length === 1) {
+             const sel = genderMatched[0];
+             setFormData(prev => ({ ...prev, package_id: sel._id }));
+          }
         }
       } else {
         setPackages([]);
@@ -845,6 +886,37 @@ const EmployeeRegistration = () => {
       toast.error("Error fetching packages");
     }
   };
+
+  // ✅ Auto-select or validate package when gender changes
+  useEffect(() => {
+    if (packages.length > 0 && formData.gender) {
+       const filtered = packages.filter(p => {
+         const pg = p.gender || "Common";
+         return pg === "Common" || pg === formData.gender;
+       });
+
+       // 1. If we have a package selected, check if it's still valid
+       if (formData.package_id) {
+         const currentPkg = packages.find(p => p._id === formData.package_id);
+         const currentPkgGender = currentPkg?.gender || "Common";
+         
+         // If not valid for current gender, clear it
+         if (currentPkgGender !== "Common" && currentPkgGender !== formData.gender) {
+           setFormData(prev => ({ ...prev, package_id: "" }));
+           setTestContainers([]);
+           // After clearing, see if we can auto-select a new one
+           if (filtered.length === 1) {
+             setFormData(prev => ({ ...prev, package_id: filtered[0]._id }));
+           }
+         }
+       } else {
+         // 2. If nothing selected, auto-select if only one option exists
+         if (filtered.length === 1) {
+           setFormData(prev => ({ ...prev, package_id: filtered[0]._id }));
+         }
+       }
+    }
+  }, [formData.gender, packages]);
 
   const handleCompanyChange = (e) => {
     const selectedCompanyId = e.target.value;
@@ -896,6 +968,7 @@ const EmployeeRegistration = () => {
       barcode: formData.barcode,
       company_name: formData.company_name,
       company_id: formData.company_id,
+      package_id: selectedPackage.package_id,
       testdetails: selectedPackage.investigations.map((inv) => ({
         testname: inv.testname,
         test_id: inv.test_id,
@@ -906,6 +979,7 @@ const EmployeeRegistration = () => {
       age: formData.age,
       dob: formData.dob || null,
       doj: formData.doj || null,
+      experience: formData.experience || "",
       designation: formData.designation || "",
       employee_type: formData.employee_type || "",
       department: formData.department,
@@ -947,6 +1021,7 @@ const EmployeeRegistration = () => {
           age: "",
           dob: "",
           doj: "",
+          experience: "",
           designation: "",
           employee_type: "",
           department: "",
@@ -1214,7 +1289,17 @@ const EmployeeRegistration = () => {
                 type="date"
                 name="doj"
                 value={formData.doj}
+                onChange={handleDOJChange}
+              />
+            </FormGroup>
+            <FormGroup>
+              <label>Experience (Years)</label>
+              <StyledInput
+                type="number"
+                name="experience"
+                value={formData.experience}
                 onChange={handleChange}
+                placeholder="Auto-calculated"
               />
             </FormGroup>
           </FormRow>
@@ -1369,7 +1454,12 @@ const EmployeeRegistration = () => {
     )}
 
     {packages
-      .filter(p => p.package_name.toLowerCase().includes(packageSearch.toLowerCase()))
+      .filter((p) => {
+        const matchesSearch = p.package_name.toLowerCase().includes(packageSearch.toLowerCase());
+        const pkgGender = p.gender || "Common";
+        const matchesGender = pkgGender === "Common" || pkgGender === formData.gender;
+        return matchesSearch && matchesGender;
+      })
       .map((pkg) => (
         <option key={pkg._id} value={pkg._id}>
           {pkg.package_name}
