@@ -10,7 +10,6 @@ import {
   Send,
   List,
   X,
-  EyeFill,
   ViewList,
   CheckCircle,
   FileEarmarkMedical,
