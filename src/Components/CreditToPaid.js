@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { Search, CreditCard, Calendar, User, Barcode, CheckCircle } from 'lucide-react';
 
 const Container = styled.div`
-  max-width: 1200px;
+  max-width: 1500px;
   margin-left: 260px;
   padding: 2rem;
   font-family: 'Inter', sans-serif;

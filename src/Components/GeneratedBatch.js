@@ -16,7 +16,7 @@ const Header = styled.header`
   color: white; padding: 2rem; border-radius: 1rem;
   margin-bottom: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center;
 `
-const Title    = styled.h1`font-size:2rem;font-weight:bold;margin-bottom:0.5rem;color:white;`
+const Title = styled.h1`font-size:2rem;font-weight:bold;margin-bottom:0.5rem;color:white;`
 const Subtitle = styled.p`font-size:1.125rem;opacity:0.9;font-weight:normal;color:white;`
 const Card = styled.div`
   background:white; border-radius:1rem; padding:2rem; margin-bottom:2rem;
@@ -29,9 +29,9 @@ const SectionTitle = styled.h2`
     background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%); border-radius:2px; }
 `
 const FilterSection = styled.div`display:flex;gap:1.5rem;align-items:end;flex-wrap:wrap;margin-bottom:1.5rem;`
-const FilterGroup   = styled.div`display:flex;flex-direction:column;gap:0.5rem;min-width:180px;`
-const Label         = styled.label`font-weight:500;color:#4a5568;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.5px;`
-const Input         = styled.input`
+const FilterGroup = styled.div`display:flex;flex-direction:column;gap:0.5rem;min-width:180px;`
+const Label = styled.label`font-weight:500;color:#4a5568;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.5px;`
+const Input = styled.input`
   padding:0.75rem; border:2px solid #e2e8f0; border-radius:0.5rem; font-size:1rem; background:white;
   &:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1);outline:none;}
 `
@@ -41,10 +41,10 @@ const Select = styled.select`
 `
 const Button = styled.button`
   padding:0.75rem 1.5rem;
-  background:${p=>p.disabled?"#cbd5e0":"linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)"};
+  background:${p => p.disabled ? "#cbd5e0" : "linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)"};
   color:white; border:none; border-radius:0.5rem; font-size:1rem; font-weight:600;
   text-transform:uppercase; letter-spacing:0.5px;
-  cursor:${p=>p.disabled?"not-allowed":"pointer"}; transition:all 0.3s ease;
+  cursor:${p => p.disabled ? "not-allowed" : "pointer"}; transition:all 0.3s ease;
   &:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 25px rgba(0,0,0,0.15);}
 `
 const PrintButton = styled.button`
@@ -54,9 +54,9 @@ const PrintButton = styled.button`
   background:linear-gradient(135deg,#38a169 0%,#2f855a 100%); color:white;
   &:hover{opacity:0.88;transform:translateY(-1px);}
 `
-const Table       = styled.table`width:100%;border-collapse:collapse;background:white;border-radius:0.5rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
+const Table = styled.table`width:100%;border-collapse:collapse;background:white;border-radius:0.5rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);`
 const TableHeader = styled.thead`background:linear-gradient(135deg,#3F72AF 0%,#112D4E 100%);color:white;`
-const TableRow    = styled.tr`
+const TableRow = styled.tr`
   &:nth-child(even){background-color:#f7fafc;}
   &:hover{background-color:rgba(102,126,234,0.05);transition:background-color 0.3s ease;}
 `
@@ -74,9 +74,9 @@ const CompanyTag = styled.span`
 const ReceivedBadge = styled.span`
   padding:0.25rem 0.6rem; border-radius:9999px; font-size:0.75rem; font-weight:600;
   text-transform:uppercase; letter-spacing:0.5px; color:white;
-  background:${p=>p.received
-    ?"linear-gradient(135deg,#38a169 0%,#2f855a 100%)"
-    :"linear-gradient(135deg,#ed8936 0%,#dd6b20 100%)"};
+  background:${p => p.received
+    ? "linear-gradient(135deg,#38a169 0%,#2f855a 100%)"
+    : "linear-gradient(135deg,#ed8936 0%,#dd6b20 100%)"};
 `
 const Message = styled.div`
   padding:1rem; border-radius:0.5rem; margin:1rem 0; font-weight:500;
@@ -88,15 +88,15 @@ const EmptyState = styled.div`
   text-align:center; padding:4rem; color:#718096;
   &::before{content:'📦';font-size:4rem;display:block;margin-bottom:1.5rem;}
 `
-const Pagination  = styled.div`display:flex;align-items:center;justify-content:space-between;margin-top:1.5rem;flex-wrap:wrap;gap:1rem;`
-const PageInfo    = styled.span`font-size:0.875rem;color:#718096;`
+const Pagination = styled.div`display:flex;align-items:center;justify-content:space-between;margin-top:1.5rem;flex-wrap:wrap;gap:1rem;`
+const PageInfo = styled.span`font-size:0.875rem;color:#718096;`
 const PageButtons = styled.div`display:flex;gap:0.5rem;`
-const PageBtn     = styled.button`
-  padding:0.4rem 0.75rem; border:2px solid ${p=>p.active?"#3F72AF":"#e2e8f0"};
-  background:${p=>p.active?"linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)":"white"};
-  color:${p=>p.active?"white":"#4a5568"}; border-radius:0.375rem; font-size:0.875rem;
-  font-weight:${p=>p.active?"600":"400"}; cursor:${p=>p.disabled?"not-allowed":"pointer"};
-  opacity:${p=>p.disabled?0.5:1}; transition:all 0.2s;
+const PageBtn = styled.button`
+  padding:0.4rem 0.75rem; border:2px solid ${p => p.active ? "#3F72AF" : "#e2e8f0"};
+  background:${p => p.active ? "linear-gradient(135deg,#3F72AF 0%,#112D4E 100%)" : "white"};
+  color:${p => p.active ? "white" : "#4a5568"}; border-radius:0.375rem; font-size:0.875rem;
+  font-weight:${p => p.active ? "600" : "400"}; cursor:${p => p.disabled ? "not-allowed" : "pointer"};
+  opacity:${p => p.disabled ? 0.5 : 1}; transition:all 0.2s;
   &:hover:not(:disabled){border-color:#3F72AF;}
 `
 
@@ -107,7 +107,7 @@ const generateBarcodeSVG = (text) => {
   const charWidths = [3, 2, 3, 2, 3, 2, 4, 1, 3, 2]
   for (let i = 0; i < (text || "").length * 6; i++) {
     const w = charWidths[i % 10]
-    bars.push(`<rect x="${x}" y="0" width="${w}" height="48" fill="${i%2===0?"#000":"#fff"}"/>`)
+    bars.push(`<rect x="${x}" y="0" width="${w}" height="48" fill="${i % 2 === 0 ? "#000" : "#fff"}"/>`)
     x += w + 1
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48">${bars.join("")}</svg>`
@@ -117,15 +117,38 @@ const PAGE_SIZE = 10
 
 // ─── Print PDF ────────────────────────────────────────────────────────────────
 // batch_details now has enriched: patient_id, patient_name, testdetails[]
-const printBatchPDF = (batch, companies) => {
+const printBatchPDF = async (batch, companies) => {
   const {
-    batch_number    = "N/A",
-    company_id      = "",
-    shipment_to     = "Shanmuga Reference Lab",
+    batch_number = "N/A",
+    company_id = "",
+    shipment_to = "Shanmuga Reference Lab",
     specimen_count: containerCounts = [],
-    batch_details   = [],
+    batch_details = [],
     created_date,
   } = batch
+
+  const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
+  let packages = [];
+  if (company_id) {
+    try {
+      const r = await fetch(`${Labbaseurl}create_package/?company_id=${company_id}`);
+      const data = await r.json();
+      packages = Array.isArray(data) ? data : (data.data || []);
+    } catch (e) { console.error(e); }
+  }
+
+  // Resolve package names from IDs
+  const uniquePackageIDs = [...new Set(batch_details.map(s => s.package_id).filter(Boolean))];
+  const packageInfoNames = uniquePackageIDs.map(id => {
+    // 1. Try to find it in batch_details first (most reliable for historical names)
+    const detail = batch_details.find(d => d.package_id === id);
+    if (detail && detail.package_name) return detail.package_name;
+
+    // 2. Fallback to common packages master list
+    const pkg = packages.find(p => p.package_id === id || p._id === id);
+    return pkg ? pkg.package_name : id;
+  });
+  const packageSummaryStr = packageInfoNames.length > 0 ? packageInfoNames.join(", ") : "Standard / Mixed";
 
   // Resolve company_name — prefer stored value, fall back to companies list lookup
   const company_name =
@@ -134,60 +157,44 @@ const printBatchPDF = (batch, companies) => {
     company_id ||
     "CHC"
 
-  const dt      = created_date ? new Date(created_date) : new Date()
-  const dateStr = dt.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })
-  const timeStr = dt.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" })
+  const dt = created_date ? new Date(created_date) : new Date()
+  const dateStr = dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+  const timeStr = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 
-  const barcodeSvg     = generateBarcodeSVG(batch_number)
+  const barcodeSvg = generateBarcodeSVG(batch_number)
   const barcodeDataUrl = `data:image/svg+xml;base64,${btoa(barcodeSvg)}`
 
   // Container summary rows
-  const containerRows   = (containerCounts || []).map(c =>
+  const containerRows = (containerCounts || []).map(c =>
     `<tr><td>${c.specimen_type}</td><td class="center">${c.count}</td></tr>`
   ).join("")
   const totalContainers = (containerCounts || []).reduce((a, b) => a + b.count, 0)
 
-  // Patient rows — one row per test, patient info spans rowspan
+  // Patient rows — joined unique container names
   let patientRows = ""
-  let serialNo    = 1
+  let serialNo = 1
 
-  ;(batch_details || []).forEach((s) => {
-    // Patient info is now directly on the item (enriched by backend)
-    const patientId   = s.patient_id   || s.patient_details?.patient_id   || "N/A"
-    const patientName = s.patient_name || s.patient_details?.patient_name || "N/A"
-    const tests       = Array.isArray(s.testdetails) ? s.testdetails : []
-    const rowspan     = tests.length || 1
+    ; (batch_details || []).forEach((s) => {
+      const patientId = s.patient_id || s.patient_details?.patient_id || "N/A"
+      const patientName = s.patient_name || s.patient_details?.patient_name || "N/A"
+      const tests = Array.isArray(s.testdetails) ? s.testdetails : []
 
-    if (tests.length === 0) {
+      // Get unique containers for this patient's tests
+      const containers = tests
+        .map(t => t.collection_container)
+        .filter(c => c && c !== "N/A" && c !== "—" && c.trim() !== "");
+
+      const uniqueContainers = [...new Set(containers)];
+      const containerStr = uniqueContainers.length > 0 ? uniqueContainers.join(", ") : "—"
+
       patientRows += `<tr class="patient-first">
-        <td class="center">${serialNo++}</td>
-        <td>${patientId}</td>
-        <td>${patientName}</td>
-        <td class="mono">${s.barcode || "N/A"}</td>
-        <td>—</td><td>—</td>
-      </tr>`
-    } else {
-      tests.forEach((t, ti) => {
-        const container = t.collection_container || "—"
-        const testName  = t.testname || t.test_name || "N/A"
-        if (ti === 0) {
-          patientRows += `<tr class="patient-first">
-            <td class="center" rowspan="${rowspan}">${serialNo++}</td>
-            <td rowspan="${rowspan}">${patientId}</td>
-            <td rowspan="${rowspan}">${patientName}</td>
-            <td class="mono" rowspan="${rowspan}">${s.barcode || "N/A"}</td>
-            <td>${testName}</td>
-            <td>${container}</td>
-          </tr>`
-        } else {
-          patientRows += `<tr class="patient-next">
-            <td>${testName}</td>
-            <td>${container}</td>
-          </tr>`
-        }
-      })
-    }
-  })
+      <td class="center">${serialNo++}</td>
+      <td>${patientId}</td>
+      <td>${patientName}</td>
+      <td class="mono">${s.barcode || "N/A"}</td>
+      <td style="line-height:1.4; font-weight: 500;">${containerStr}</td>
+    </tr>`
+    })
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
@@ -235,6 +242,7 @@ const printBatchPDF = (batch, companies) => {
     <div class="meta-row"><span class="lbl">Shipment From</span>: ${company_name}</div>
     <div class="meta-row"><span class="lbl">Shipment To</span>: ${shipment_to}</div>
     <div class="meta-row"><span class="lbl">Total Patients</span>: ${batch_details.length}</div>
+    <div class="meta-row"><span class="lbl">Packages Info</span>: ${packageSummaryStr}</div>
   </div>
   <div class="meta-right">
     <img src="${barcodeDataUrl}" width="200" height="48" alt="barcode" style="display:block;margin-bottom:4px"/>
@@ -247,12 +255,11 @@ const printBatchPDF = (batch, companies) => {
   <thead><tr>
     <th class="center" style="width:32px">#</th>
     <th style="width:90px">Patient ID</th>
-    <th style="width:130px">Patient Name</th>
+    <th style="width:130px , white-space: nowrap;">Patient Name</th>
     <th style="width:100px">Barcode</th>
-    <th>Test Name</th>
-    <th style="width:160px">Collection Container</th>
+    <th>Collection Containers</th>
   </tr></thead>
-  <tbody>${patientRows || '<tr><td colspan="6" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
+  <tbody>${patientRows || '<tr><td colspan="5" class="center" style="color:#888;padding:16px">No patient data</td></tr>'}</tbody>
 </table>
 
 <div class="sec-title">Container Summary</div>
@@ -280,18 +287,18 @@ const printBatchPDF = (batch, companies) => {
 const BatchList = () => {
   const today = new Date().toISOString().split("T")[0]
 
-  const [batches,   setBatches]   = useState([])
-  const [filtered,  setFiltered]  = useState([])
-  const [loading,   setLoading]   = useState(false)
-  const [error,     setError]     = useState(null)
+  const [batches, setBatches] = useState([])
+  const [filtered, setFiltered] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [companies, setCompanies] = useState([])
-  const [page,      setPage]      = useState(1)
-  const [filters,   setFilters]   = useState({
-    search:     "",
+  const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState({
+    search: "",
     company_id: "",
-    from_date:  today,
-    to_date:    today,
-    received:   "",
+    from_date: today,
+    to_date: today,
+    received: "",
   })
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
@@ -316,8 +323,8 @@ const BatchList = () => {
     try {
       let url = `${Labbaseurl}batch/?`
       if (filters.company_id) url += `company_id=${filters.company_id}&`
-      if (filters.from_date)  url += `from_date=${filters.from_date}&`
-      if (filters.to_date)    url += `to_date=${filters.to_date}&`
+      if (filters.from_date) url += `from_date=${filters.from_date}&`
+      if (filters.to_date) url += `to_date=${filters.to_date}&`
 
       const response = await fetch(url)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -376,10 +383,10 @@ const BatchList = () => {
 
   // ── Pagination ─────────────────────────────────────────────────────────────
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const clearFilters = () =>
-    setFilters({ search:"", company_id:"", from_date:today, to_date:today, received:"" })
+    setFilters({ search: "", company_id: "", from_date: today, to_date: today, received: "" })
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -444,7 +451,7 @@ const BatchList = () => {
           </FilterGroup>
           <Button
             onClick={clearFilters}
-            style={{ background:"#e2e8f0", color:"#4a5568" }}
+            style={{ background: "#e2e8f0", color: "#4a5568" }}
           >
             Clear
           </Button>
@@ -452,7 +459,7 @@ const BatchList = () => {
             {loading ? "Loading..." : "Refresh"}
           </Button>
         </FilterSection>
-        {error   && <Message className="error">⚠️ {error}</Message>}
+        {error && <Message className="error">⚠️ {error}</Message>}
         {loading && <Message className="loading">⏳ Loading batches...</Message>}
       </Card>
 
@@ -461,7 +468,7 @@ const BatchList = () => {
         <Card>
           <SectionTitle>
             Batches
-            <span style={{ fontSize:"0.9rem", fontWeight:400, color:"#718096", marginLeft:8 }}>
+            <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "#718096", marginLeft: 8 }}>
               ({filtered.length} results)
             </span>
           </SectionTitle>
@@ -479,6 +486,7 @@ const BatchList = () => {
                     <TableHead>#</TableHead>
                     <TableHead>Batch No</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead style={{ width: "180px" }}>Packages</TableHead>
                     <TableHead>Created Date</TableHead>
                     <TableHead>Samples</TableHead>
                     <TableHead>Status</TableHead>
@@ -503,7 +511,13 @@ const BatchList = () => {
                         <TableCell>
                           {resolvedCompany
                             ? <CompanyTag>🏢 {resolvedCompany}</CompanyTag>
-                            : <span style={{ color:"#a0aec0" }}>—</span>}
+                            : <span style={{ color: "#a0aec0" }}>—</span>}
+                        </TableCell>
+                        <TableCell style={{ fontWeight: 600, color: "#4a5568" }}>
+                           {(() => {
+                              const names = [...new Set((batch.batch_details || []).map(s => s.package_name).filter(Boolean))];
+                              return names.length > 0 ? names.join(", ") : "Standard / Mixed";
+                           })()}
                         </TableCell>
                         <TableCell>
                           {batch.created_date
@@ -512,7 +526,7 @@ const BatchList = () => {
                         </TableCell>
                         <TableCell>
                           <strong>{batch.batch_details?.length || 0}</strong>
-                          <span style={{ color:"#a0aec0", fontSize:"0.78rem", marginLeft:4 }}>
+                          <span style={{ color: "#a0aec0", fontSize: "0.78rem", marginLeft: 4 }}>
                             samples
                           </span>
                         </TableCell>

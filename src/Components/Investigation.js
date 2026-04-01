@@ -5,29 +5,34 @@ import styled from "styled-components"
 import axios from "axios"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { Printer } from "lucide-react"
+import { Printer, Edit2 } from "lucide-react"
 
 import HeaderImg from "./Images/Header.png"
 import FooterImg from "./Images/Footer.png"
 
 // Styled Components (existing)
 const Container = styled.div`
-  max-width: 1600px;
   /* margin: 24px auto; */
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
   background: linear-gradient(180deg, #ffffff, #F9F7F7);
   margin-left: 260px; /* Match sidebar desktop width */
+  width: calc(100% - 260px);
+  box-sizing: border-box;
   margin-top: 24px;
   margin-bottom: 24px;
+  min-height: calc(100vh - 48px);
+  max-width: none;
 
   @media (max-width: 1024px) {
     margin-left: 240px; /* Match sidebar tablet width */
+    width: calc(100% - 240px);
   }
 
   @media (max-width: 768px) {
     margin-left: 0;
+    width: 100%;
     margin: 24px auto; /* Centered on mobile */
     padding: 1rem;
   }
@@ -246,8 +251,11 @@ const Input = styled.input`
 `
 
 const TextArea = styled.textarea`
+  box-sizing: border-box;
+  width: 100%;
   padding: 12px 14px; border-radius: 8px; border: 1.5px solid #cbd5e0;
   font-size: 16px; color: #2d3748;
+  font-family: inherit;
   &:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3); }
 `
 
@@ -291,6 +299,7 @@ const SmallNote = styled.div`
   color: #718096;
   margin-top: 4px;
   word-break: break-all;
+  max-width: 100%;
 `
 
 const ViewLink = styled.a`
@@ -301,6 +310,38 @@ const ViewLink = styled.a`
   margin-left: 10px;
   &:hover { text-decoration: underline; color: #1d4ed8; }
 `
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+`;
+
+const NoteButton = styled.button`
+  background: #f3f4f6;
+  border: 1.5px dashed #cbd5e0;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #4a5568;
+  font-weight: 600;
+  transition: 0.2s;
+  &:hover { background: #e2e8f0; border-color: #667eea; color: #667eea; }
+`;
 
 const DEFAULT_VITALS = {
   height_cm: "",
@@ -346,7 +387,8 @@ export default function Investigation() {
   // Search state + debounce
   const [searchInput, setSearchInput] = useState("") // raw input
   const [debouncedSearch, setDebouncedSearch] = useState("") // debounced value
-
+  // Inside Investigation component
+  const [activeNoteIdx, setActiveNoteIdx] = useState(null); // Tracks the index of the test being edited
   // Overall status filter
   const [statusFilter, setStatusFilter] = useState("any")
 
@@ -612,6 +654,7 @@ export default function Investigation() {
       setForm((prev) => ({
         ...prev,
         employee_id: selectedEmployee.employee_id,
+        employee_name: selectedEmployee.employee_name,
         age: selectedEmployee.age,
         gender: selectedEmployee.gender,
         barcode: selectedEmployee.barcode,
@@ -650,6 +693,7 @@ export default function Investigation() {
     setShowForm(false)
     setForm({
       employee_id: "",
+      employee_name: "",
       age: "",
       gender: "",
       barcode: "",
@@ -1074,6 +1118,10 @@ export default function Investigation() {
                 <Input name="employee_id" value={form.employee_id} readOnly />
               </Field>
               <Field>
+                <Label>Employee Name</Label>
+                <Input name="employee_name" value={form.employee_name} readOnly />
+              </Field>              
+              <Field>
                 <Label>Barcode</Label>
                 <Input name="barcode" value={form.barcode} readOnly />
               </Field>
@@ -1098,17 +1146,52 @@ export default function Investigation() {
                 <Input name="bmi" value={form.vitals.bmi} readOnly />
               </Field>
               <Field>
-                <Label>Blood Pressure</Label>
+                <Label>Blood Pressure (mmHg)</Label>
                 <Input name="blood_pressure" value={form.vitals.blood_pressure} onChange={handleVitalsChange} />
               </Field>
               <Field>
-                <Label>SpO2</Label>
+                <Label>SpO2 (%)</Label>
                 <Input name="spo2" value={form.vitals.spo2} onChange={handleVitalsChange} />
               </Field>
 
               <Field style={{ gridColumn: "1 / -1" }}>
                 <Label>Patient History</Label>
-                <TextArea name="patient_history" rows="4" value={form.patient_history} onChange={handleChange} />
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <TextArea 
+                    name="patient_history" 
+                    rows="4" 
+                    value={form.patient_history} 
+                    onChange={handleChange} 
+                    style={{ paddingRight: '100px' }}
+                    placeholder="Enter patient history or use the Edit tool..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setActiveNoteIdx(-1)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '12px',
+                      background: '#fff',
+                      border: '1.5px solid #edf2f7',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                      color: '#4A5568',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => { e.target.style.background = '#f7fafc'; e.target.style.borderColor = '#cbd5e0'; }}
+                    onMouseOut={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#edf2f7'; }}
+                  >
+                    <Edit2 size={12} /> Edit
+                  </button>
+                </div>
               </Field>
             </Grid>
             <br />
@@ -1161,14 +1244,41 @@ export default function Investigation() {
                       </Field>
                     </TwoColGrid>
                     {test.is_notes === true && (
-                      <Field style={{ marginTop: '15px' }}>
+                      <Field style={{ marginTop: '15px', gridColumn: '1 / -1' }}>
                         <Label>Notes</Label>
-                        <TextArea
-                          value={test.notes || ""}
-                          onChange={e => handleTestChange(idx, "notes", e.target.value)}
-                          placeholder="Notes..."
-                          rows={3}
-                        />
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <TextArea
+                            value={test.notes || ""}
+                            onChange={e => handleTestChange(idx, "notes", e.target.value)}
+                            placeholder="Enter notes..."
+                            rows={3}
+                            style={{ paddingRight: '100px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setActiveNoteIdx(idx)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              top: '12px',
+                              background: '#fff',
+                              border: '1.5px solid #edf2f7',
+                              borderRadius: '8px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                              color: '#4A5568',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                        </div>
+                        {test.notes && <SmallNote style={{ marginTop: '5px' }}>Total characters: {test.notes.length}</SmallNote>}
                       </Field>
                     )}
                     {test.is_fileuploaded === true && (
@@ -1264,14 +1374,40 @@ export default function Investigation() {
                         </Field>
                       )}
                       {test.is_notes === true && (
-                        <Field>
+                        <Field style={{ gridColumn: '1 / -1' }}>
                           <Label>Notes</Label>
-                          <TextArea
-                            value={test.notes || ""}
-                            onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
-                            placeholder="Notes..."
-                            rows={3}
-                          />
+                          <div style={{ position: 'relative', width: '100%' }}>
+                            <TextArea
+                              value={test.notes || ""}
+                              onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                              placeholder="Notes..."
+                              rows={3}
+                              style={{ width: '100%', paddingRight: '100px' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setActiveNoteIdx(idx)}
+                              style={{
+                                position: 'absolute',
+                                right: '12px',
+                                top: '12px',
+                                background: '#fff',
+                                border: '1.5px solid #edf2f7',
+                                borderRadius: '8px',
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                color: '#4A5568',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px'
+                              }}
+                            >
+                              <Edit2 size={12} /> Edit
+                            </button>
+                          </div>
                         </Field>
                       )}
                     </TwoColGrid>
@@ -1337,14 +1473,40 @@ export default function Investigation() {
                       </Field>
                     )}
                     {test.is_notes === true && (
-                      <Field>
+                      <Field style={{ gridColumn: '1 / -1' }}>
                         <Label>Notes</Label>
-                        <TextArea
-                          value={test.notes || ""}
-                          onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
-                          placeholder="Enter notes..."
-                          rows={4}
-                        />
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <TextArea
+                            value={test.notes || ""}
+                            onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                            placeholder="Enter detailed notes..."
+                            rows={4}
+                            style={{ paddingRight: '100px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setActiveNoteIdx(idx)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              top: '12px',
+                              background: '#fff',
+                              border: '1.5px solid #edf2f7',
+                              borderRadius: '8px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                              color: '#4A5568',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                        </div>
                       </Field>
                     )}
                     {test.is_report === true && (
@@ -1370,6 +1532,90 @@ export default function Investigation() {
             </Button>
           </form>
         </FormContainer>
+      )}
+
+      {/* Note Edit Modal */}
+      {activeNoteIdx !== null && (
+        <ModalOverlay onClick={() => setActiveNoteIdx(null)}>
+          <ModalContent onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%', borderRadius: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #f0f2f5', paddingBottom: '15px' }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#112D4E', fontSize: '1.5rem' }}>
+                  {activeNoteIdx === -1 ? "Patient Medical History" : (form.test_results[activeNoteIdx]?.test_name || "Investigation Note")} 
+                </h2>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>Clinical Findings & Observations</span>
+              </div>
+              <button 
+                onClick={() => setActiveNoteIdx(null)} 
+                style={{ 
+                  background: '#f8fafc', 
+                  border: 'none', 
+                  fontSize: '24px', 
+                  cursor: 'pointer', 
+                  color: '#94a3b8', 
+                  width: '44px', 
+                  height: '44px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  transition: '0.2s',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <Field style={{ marginBottom: '20px' }}>
+              <TextArea
+                style={{ 
+                  width: '100%', 
+                  minHeight: '400px', 
+                  fontSize: '16px', 
+                  lineHeight: '1.6', 
+                  padding: '20px', 
+                  border: '2px solid #e2e8f0', 
+                  borderRadius: '16px',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
+                  fontFamily: 'inherit'
+                }}
+                autoFocus
+                value={activeNoteIdx === -1 ? (form.patient_history || "") : (form.test_results[activeNoteIdx]?.notes || "")}
+                onChange={(e) => {
+                  if (activeNoteIdx === -1) {
+                    setForm(prev => ({ ...prev, patient_history: e.target.value }));
+                  } else {
+                    handleTestChange(activeNoteIdx, 'notes', e.target.value);
+                  }
+                }}
+                placeholder="Enter detailed clinical content here... Use shift+enter for new lines."
+              />
+            </Field>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+              <Button 
+                onClick={() => setActiveNoteIdx(null)}
+                style={{ 
+                  background: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+                  boxShadow: '0 4px 12px rgba(148, 163, 184, 0.3)'
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => setActiveNoteIdx(null)}
+                style={{ 
+                  background: 'linear-gradient(135deg, #3F72AF 0%, #112D4E 100%)',
+                  boxShadow: '0 4px 12px rgba(63, 114, 175, 0.3)',
+                  padding: '12px 30px'
+                }}
+              >
+                Save Findings
+              </Button>
+            </div>
+          </ModalContent>
+        </ModalOverlay>
       )}
     </Container>
   )
