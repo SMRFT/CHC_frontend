@@ -542,22 +542,41 @@ const EmployeeRegistration = () => {
   }, [formData.package_id, packages, Labbaseurl]);
 
   const handlePrintBarcode = (barcode, empName, age, gender) => {
-    const uniqueContainers = [...new Set(testContainers
-      .map(t => t.collection_container)
-      .filter(c => c && c.trim() !== "" && c.toLowerCase() !== "n/a")
-    )];
+    // Group by both container and suffix
+    const containerSuffixPairs = testContainers.reduce((acc, t) => {
+      const container = (t.collection_container || "").trim();
+      if (container === "" || container.toLowerCase() === "n/a") return acc;
+      
+      const suffix = (t.suffix || "").trim();
+      const key = `${container}|${suffix}`;
+      
+      if (!acc[key]) {
+        acc[key] = { container, suffix };
+      }
+      return acc;
+    }, {});
 
-    const extraBarcodes = Array(5).fill("");
-    const containersToPrint = [...uniqueContainers, ...extraBarcodes];
+    const uniquePairs = Object.values(containerSuffixPairs);
+    
+    // Get dynamic extra barcode count from package
+    const selectedPkg = packages.find(pkg => pkg._id === formData.package_id);
+    const extraCount = selectedPkg && selectedPkg.extra_barcode != null 
+      ? parseInt(selectedPkg.extra_barcode, 10) 
+      : 3;
+      
+    const extraBarcodes = Array(extraCount).fill({ container: "", suffix: "" });
+    const pairsToPrint = [...uniquePairs, ...extraBarcodes];
     
     // Create a temporary container for barcodes to generate their bases
     const tempDiv = document.createElement("div");
     tempDiv.style.display = "none";
     document.body.appendChild(tempDiv);
 
-    const barcodeData = containersToPrint.map(container => {
+    const barcodeData = pairsToPrint.map(pair => {
       const canvas = document.createElement("canvas");
-      JsBarcode(canvas, barcode, {
+      const barcodeVal = pair.suffix ? `${barcode}-${pair.suffix}` : barcode;
+      
+      JsBarcode(canvas, barcodeVal, {
         format: "CODE128",
         width: 2,
         height: 40,
@@ -566,7 +585,8 @@ const EmployeeRegistration = () => {
       });
       return {
         img: canvas.toDataURL("image/png"),
-        label: container
+        label: pair.container,
+        barcodeNum: barcodeVal
       };
     });
 
@@ -587,15 +607,16 @@ const EmployeeRegistration = () => {
             body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
             .barcode-page {
               width: 50mm; height: 25mm;
-              padding: 2mm; box-sizing: border-box;
+              padding: 1.5mm; box-sizing: border-box;
               display: flex; flex-direction: column; align-items: flex-start;
               page-break-after: always; overflow: hidden;
             }
+            
             .header-text { font-size: 10px; font-weight: bold; margin-bottom: 1px; white-space: nowrap; }
             .sub-text { font-size: 7px; margin-bottom: 2px; }
-            .barcode-img { width: 40mm; height: 12mm; }
-            .barcode-num { font-size: 9px; font-weight: bold; margin-top: 1px; }
-            .container-tag { font-size: 8px; font-weight: bold; color: #333; margin-top: 1px; }
+            .barcode-img { width: 40mm; height: 8mm; }
+            .barcode-num { font-size: 17px; font-weight: bold; margin-top: 1px; line-height: 1; }
+            .container-tag { font-size: 10px; font-weight: bold; color: #333; margin-top: 1px; width: 100%; text-align: right; }
           </style>
         </head>
         <body>
@@ -604,7 +625,7 @@ const EmployeeRegistration = () => {
               <div class="header-text">${empName} ${age}Y/${gender.charAt(0)}</div>
               <div class="sub-text">${new Date().toLocaleString()}</div>
               <img class="barcode-img" src="${data.img}" />
-              <div class="barcode-num">${barcode}</div>
+              <div class="barcode-num">${data.barcodeNum}</div>
               <div class="container-tag">${data.label}</div>
             </div>
           `).join('')}
@@ -985,9 +1006,12 @@ const EmployeeRegistration = () => {
       department: formData.department,
       email: formData.email,
       mobile: formData.mobile,
+      dynamic_fields: selectedPackage.dynamic_fields || [],
+      addon_investigation: selectedPackage.addon_investigation || [],
       payment_mode: formData.payment_type === "Credit" ? "Credit" : formData.cash_mode,
       transaction_id: formData.transaction_id || "",
       registration_mode: formData.registration_mode,
+      extra_barcode: selectedPackage.extra_barcode ?? 3
     };
 
     try {
@@ -1555,6 +1579,9 @@ const EmployeeRegistration = () => {
                     }}
                   >
                     Total Amount: ₹{selectedPkg.totalAmount}
+                    <div style={{ fontSize: "0.9rem", color: "#6b7280", marginTop: "4px" }}>
+                      Extra Barcodes: {parseInt(selectedPkg.extra_barcode ?? 3, 10)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1579,6 +1606,7 @@ const EmployeeRegistration = () => {
                   <th>ID</th>
                   <th>Test Name</th>
                   <th>Collection Container</th>
+                  <th>Suffix</th>
                 </tr>
               </thead>
               <tbody>
@@ -1587,6 +1615,7 @@ const EmployeeRegistration = () => {
                     <td className="id-col">{test.test_id}</td>
                     <td className="name-col">{test.test_name}</td>
                     <td className="container-col">{test.collection_container}</td>
+                    <td style={{ fontWeight: '700', color: '#E53E3E' }}>{test.suffix || "-"}</td>
                   </tr>
                 ))}
               </tbody>

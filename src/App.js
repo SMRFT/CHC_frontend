@@ -20,6 +20,7 @@ import CHCReport from "./Components/CHCReport";
 import OffsitePatients from "./Components/OffsitePatients";
 import CreditToPaid from "./Components/CreditToPaid";
 import PaymentReport from "./Components/PaymentReport";
+import InvestigationChecklist from "./Components/InvestigationChecklist";
 
 
 // Content now accepts a flag to control the left margin
@@ -58,6 +59,7 @@ function AppInner() {
           <Route path="/OffsitePatients" element={<OffsitePatients />} />
           <Route path="/CreditToPaid" element={<CreditToPaid />} />
           <Route path="/PaymentReport" element={<PaymentReport />} />
+          <Route path="/InvestigationChecklist" element={<InvestigationChecklist />} />
 
           <Route path="/" element={<Login />} />
 

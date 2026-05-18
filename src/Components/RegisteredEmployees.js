@@ -365,6 +365,7 @@ export default function RegisteredEmployees() {
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>Date</th>
+                <th>Time</th>
               </tr>
             </thead>
             <tbody>
@@ -381,6 +382,9 @@ export default function RegisteredEmployees() {
                   <Td data-label="Mobile">{emp.mobile || "-"}</Td>
                   <Td data-label="Created Date">
                     {emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"}
+                  </Td>
+                  <Td data-label="Created Time">
+                    {emp.created_date ? new Date(emp.created_date).toLocaleTimeString() : "-"}
                   </Td>
                 </tr>
               )) : (

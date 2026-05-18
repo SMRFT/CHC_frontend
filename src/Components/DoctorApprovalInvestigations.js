@@ -4,13 +4,18 @@ import axios from "axios";
 import styled from "styled-components";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Eye, X, Maximize2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, X, Maximize2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+// Set PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
 
 // --- Styled Components ---
-
-const Page = styled.div`
+const PageWrapper = styled.div`
   display: flex;
   min-height: 100vh;
   background: #F9F7F7;
@@ -316,7 +321,115 @@ const PreviewClose = styled(X)`
   cursor: pointer;
   width: 32px;
   height: 32px;
+  z-index: 2100;
+  background: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  padding: 4px;
+  &:hover { background: #f43f5e; }
 `;
+
+const PDFScrollArea = styled.div`
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background: #333;
+`;
+
+const PDFControls = styled.div`
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(0,0,0,0.8);
+  padding: 10px 20px;
+  border-radius: 30px;
+  color: white;
+  z-index: 2100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+`;
+
+const ControlBtn = styled.button`
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 50%;
+  transition: 0.2s;
+  &:hover { background: rgba(255,255,255,0.1); }
+  &:disabled { opacity: 0.3; cursor: not-allowed; }
+`;
+
+function PDFViewer({ url }) {
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [scale, setScale] = useState(1.0);
+
+  function onDocumentLoadSuccess({ numPages }) {
+    setNumPages(numPages);
+  }
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <PDFScrollArea>
+        {/* Try native browser PDF viewer first as it is often more stable */}
+        <object 
+          data={url} 
+          type="application/pdf" 
+          width="100%" 
+          height="100%"
+          style={{ minHeight: '80vh' }}
+        >
+          <Document file={url} onLoadSuccess={onDocumentLoadSuccess} loading={<div style={{color: 'white'}}>Loading PDF Viewer...</div>}>
+            <Page 
+              pageNumber={pageNumber} 
+              scale={scale} 
+              renderAnnotationLayer={true}
+              renderTextLayer={true}
+            />
+          </Document>
+          <div style={{ color: 'white', padding: '20px', textAlign: 'center' }}>
+            <p>PDF Viewer could not be loaded.</p>
+            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#3F72AF', fontWeight: 'bold', textDecoration: 'underline' }}>
+              Open PDF in New Tab
+            </a>
+          </div>
+        </object>
+      </PDFScrollArea>
+
+      <PDFControls onClick={e => e.stopPropagation()}>
+        <ControlBtn disabled={pageNumber <= 1} onClick={() => setPageNumber(prev => prev - 1)}>
+          <ChevronLeft size={20} />
+        </ControlBtn>
+        <span style={{ fontSize: '14px', fontWeight: 700, minWidth: '80px', textAlign: 'center' }}>
+          Page {pageNumber} of {numPages || '--'}
+        </span>
+        <ControlBtn disabled={pageNumber >= numPages} onClick={() => setPageNumber(prev => prev + 1)}>
+          <ChevronRight size={20} />
+        </ControlBtn>
+        <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.2)', margin: '0 10px' }} />
+        <ControlBtn onClick={() => setScale(prev => Math.min(prev + 0.2, 3.0))}>
+          <ZoomIn size={20} />
+        </ControlBtn>
+        <span style={{ fontSize: '12px', fontWeight: 600 }}>{Math.round(scale * 100)}%</span>
+        <ControlBtn onClick={() => setScale(prev => Math.max(prev - 0.2, 0.5))}>
+          <ZoomOut size={20} />
+        </ControlBtn>
+      </PDFControls>
+    </div>
+  );
+}
 
 const Notification = styled.div`
   position: fixed;
@@ -348,7 +461,7 @@ export default function DoctorApprovalInvestigations() {
   // Modal & Preview State
   const [showModal, setShowModal] = useState(false);
   const [selectedInv, setSelectedInv] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null); // { url, type: 'image' | 'pdf' }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -392,6 +505,26 @@ export default function DoctorApprovalInvestigations() {
     });
   }, [investigations, searchInput, statusFilter]);
 
+  const handleFileClick = async (url) => {
+    console.log("File clicked, detecting type for:", url);
+    try {
+      const res = await axios.get(url, { responseType: 'blob' });
+      const blob = res.data;
+      console.log("Blob detected:", blob.type, "Size:", blob.size);
+      const blobUrl = URL.createObjectURL(blob);
+      
+      if (blob.type === 'application/pdf') {
+        setPreviewFile({ url: blobUrl, type: 'pdf' });
+      } else {
+        setPreviewFile({ url: blobUrl, type: 'image' });
+      }
+    } catch (err) {
+      console.error("Error detecting file type:", err);
+      // Fallback to direct URL if blob fetch fails
+      setPreviewFile({ url, type: 'image' });
+    }
+  };
+
   const renderFiles = (files) => {
     if (!files || files.length === 0) return "-";
     return (
@@ -399,8 +532,16 @@ export default function DoctorApprovalInvestigations() {
         {files.map(fileId => {
           const url = `${Labbaseurl}get_file/${fileId}/`;
           return (
-            <FileBox key={fileId} onClick={() => setPreviewImage(url)}>
-              <img src={url} alt="file" onError={(e) => e.target.src = "https://via.placeholder.com/60?text=File"} />
+            <FileBox key={fileId} onClick={() => handleFileClick(url)}>
+              <img 
+                src={url} 
+                alt="file" 
+                onError={(e) => {
+                  // Final safeguard: if image fails, it's likely a PDF or a missing file
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; 
+                }} 
+              />
               <div className="preview-icon"><Maximize2 size={16} /></div>
             </FileBox>
           );
@@ -411,14 +552,51 @@ export default function DoctorApprovalInvestigations() {
 
   const renderVitals = (vitals) => {
     if (!vitals) return "-";
-    const parts = [];
-    if (vitals.height_cm) parts.push(`H: ${vitals.height_cm}cm`);
-    if (vitals.weight_kg) parts.push(`W: ${vitals.weight_kg}kg`);
-    if (vitals.bmi) parts.push(`BMI: ${vitals.bmi}`);
-    if (vitals.blood_pressure) parts.push(`BP: ${vitals.blood_pressure}`);
-    if (vitals.spo2) parts.push(`SpO2: ${vitals.spo2}%`);
-    return parts.length > 0 ? parts.join(", ") : "-";
+    
+    const getStatusColor = (status) => {
+      if (!status) return 'inherit';
+      const s = status.toLowerCase();
+      if (s === 'normal' || s === 'normal') return '#10b981'; // Green
+      if (s.includes('high') || s.includes('obese') || s.includes('obeise')) return '#f43f5e'; // Red
+      if (s.includes('low') || s.includes('over weight')) return '#f59e0b'; // Amber
+      return '#64748b';
+    };
+
+    const renderPart = (label, value, status) => {
+      if (!value) return null;
+      return (
+        <span key={label} style={{ marginRight: '10px', display: 'inline-block' }}>
+          <strong style={{ fontSize: '11px', color: '#64748b' }}>{label}:</strong> {value}
+          {status && (
+            <span style={{ 
+              marginLeft: '4px', 
+              fontSize: '10px', 
+              fontWeight: 800, 
+              color: getStatusColor(status),
+              textTransform: 'uppercase'
+            }}>
+              ({status})
+            </span>
+          )}
+        </span>
+      );
+    };
+
+    const items = [
+      renderPart('H', vitals.height_cm ? `${vitals.height_cm}cm` : null),
+      renderPart('W', vitals.weight_kg ? `${vitals.weight_kg}kg` : null),
+      renderPart('BMI', vitals.bmi, vitals.bmi_status),
+      renderPart('BP', vitals.blood_pressure, vitals.BP_status),
+      renderPart('SpO2', vitals.spo2 ? `${vitals.spo2}%` : null, vitals.spo2_status),
+    ].filter(Boolean);
+
+    return items.length > 0 ? (
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px' }}>
+        {items}
+      </div>
+    ) : "-";
   };
+
 
   const handleOpenModal = (inv) => {
     setSelectedInv(inv);
@@ -426,7 +604,7 @@ export default function DoctorApprovalInvestigations() {
   };
 
   return (
-    <Page>
+    <PageWrapper>
       <SidebarSpace />
       <Main>
         {toast.show && <Notification type={toast.type}>{toast.msg}</Notification>}
@@ -521,7 +699,7 @@ export default function DoctorApprovalInvestigations() {
               <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#112D4E', fontSize: '14px' }}>Patient Context</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
-                  <div><strong>History:</strong> {selectedInv.patient_history || "No history provided"}</div>
+                  <div><strong>History:</strong> {selectedInv.patient_history || "No Clinical History"}</div>
                   <div><strong>Vitals:</strong> {renderVitals(selectedInv.vitals)}</div>
                 </div>
               </div>
@@ -610,15 +788,26 @@ export default function DoctorApprovalInvestigations() {
       )
       }
 
-      {/* Image Full-screen Preview */}
-      {
-        previewImage && (
-          <PreviewOverlay onClick={() => setPreviewImage(null)}>
-            <PreviewClose onClick={() => setPreviewImage(null)} />
-            <PreviewImage src={previewImage} onClick={e => e.stopPropagation()} />
-          </PreviewOverlay>
-        )
-      }
-    </Page >
+      {/* Universal File Preview (Image/PDF) */}
+      {previewFile && (
+        <PreviewOverlay onClick={() => setPreviewFile(null)}>
+          <PreviewClose onClick={() => setPreviewFile(null)} />
+          {previewFile.type === 'pdf' ? (
+            <PDFViewer url={previewFile.url} />
+          ) : (
+            <PreviewImage 
+              src={previewFile.url} 
+              onClick={e => e.stopPropagation()} 
+              onError={(e) => {
+                console.warn("Large preview image failed, trying PDF fallback");
+                e.target.onerror = null;
+                // If it failed as image, maybe it's a PDF that detection missed
+                setPreviewFile(prev => ({ ...prev, type: 'pdf' }));
+              }}
+            />
+          )}
+        </PreviewOverlay>
+      )}
+    </PageWrapper >
   );
 }

@@ -440,6 +440,7 @@ const Packagecreation = () => {
   const [packageName, setPackageName] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
+  const [extraBarcode, setExtraBarcode] = useState(3);
   const [testSearch, setTestSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
 
@@ -483,6 +484,28 @@ const Packagecreation = () => {
   });
   const [savingTest, setSavingTest] = useState(false);
 
+  // Dynamic Fields and Addons
+  const [availableDynamicFields, setAvailableDynamicFields] = useState([]);
+  const [selectedDynamicFields, setSelectedDynamicFields] = useState([]);
+  const [availableAddons, setAvailableAddons] = useState([]);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  
+  const [showDynamicFieldModal, setShowDynamicFieldModal] = useState(false);
+  const [newDynamicField, setNewDynamicField] = useState({
+    field_id: "",
+    field_name: "",
+    field_values: [{ key: "", value: "" }],
+    is_active: true
+  });
+  
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [newAddon, setNewAddon] = useState({
+    test_id: "",
+    test_name: "",
+    test_price: "",
+    is_active: true
+  });
+
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL?.trim();
 
   // Fetch tests
@@ -513,6 +536,29 @@ const Packagecreation = () => {
 
   useEffect(() => {
     fetchCompanies();
+  }, [Labbaseurl]);
+
+  const fetchDynamicFields = async () => {
+    try {
+      const res = await axios.get(`${Labbaseurl}dynamic_fields/`);
+      setAvailableDynamicFields(res.data);
+    } catch (err) {
+      console.error("Error fetching dynamic fields:", err);
+    }
+  };
+
+  const fetchAddons = async () => {
+    try {
+      const res = await axios.get(`${Labbaseurl}addon_investigations/`);
+      setAvailableAddons(res.data);
+    } catch (err) {
+      console.error("Error fetching addons:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDynamicFields();
+    fetchAddons();
   }, [Labbaseurl]);
 
   const fetchAllCompanies = async () => {
@@ -547,7 +593,7 @@ const Packagecreation = () => {
     }
   };
    
-  const handleUpdatePackage = async (pId, updatedName, updatedGender) => {
+  const handleUpdatePackage = async (pId, updatedName, updatedGender, updatedExtra) => {
     try {
       const response = await fetch(`${Labbaseurl}create_package/`, {
         method: "PATCH",
@@ -556,7 +602,8 @@ const Packagecreation = () => {
           package_id: pId,
           company_id: selectedCompanyId,
           package_name: updatedName,
-          gender: updatedGender
+          gender: updatedGender,
+          extra_barcode: updatedExtra
         })
       });
       const data = await response.json();
@@ -737,7 +784,10 @@ const Packagecreation = () => {
         testname: row.name,
         test_id: row.test_id,
       })),
+      dynamic_fields: selectedDynamicFields,
+      addon_investigation: selectedAddons,
       gender: packageGender,
+      extra_barcode: Number(extraBarcode) || 0,
     };
 
     try {
@@ -863,6 +913,16 @@ const Packagecreation = () => {
                    ))}
                 </RadioGroup>
               </FormGroup>
+              <FormGroup style={{ flex: 1, marginBottom: 0 }}>
+                <FormLabel>Extra Barcodes</FormLabel>
+                <Input
+                  type="number"
+                  value={extraBarcode}
+                  onChange={(e) => setExtraBarcode(e.target.value)}
+                  placeholder="e.g. 3"
+                  min="0"
+                />
+              </FormGroup>
             </CompanyRow>
 
             {/* Test Selection */}
@@ -890,6 +950,54 @@ const Packagecreation = () => {
                   +
                 </PlusButton>
               </CompanyRow>
+            </FormGroup>
+
+            {/* Dynamic Fields Selection */}
+            <FormGroup>
+              <FormLabel>Dynamic Investigation Fields</FormLabel>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                {availableDynamicFields.map(field => (
+                  <label key={field.field_id} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f3f4f6', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedDynamicFields.some(df => df.field_id === field.field_id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDynamicFields([...selectedDynamicFields, field]);
+                        } else {
+                          setSelectedDynamicFields(selectedDynamicFields.filter(df => df.field_id !== field.field_id));
+                        }
+                      }}
+                    />
+                    {field.field_name}
+                  </label>
+                ))}
+                <PlusButton type="button" onClick={() => setShowDynamicFieldModal(true)} style={{ height: '32px', width: '32px', fontSize: '1rem' }}>+</PlusButton>
+              </div>
+            </FormGroup>
+
+            {/* Addon Selection */}
+            <FormGroup>
+              <FormLabel>Add-On Investigations</FormLabel>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                {availableAddons.map(addon => (
+                  <label key={addon.test_id} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f3f4f6', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedAddons.some(a => a.test_id === addon.test_id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedAddons([...selectedAddons, addon]);
+                        } else {
+                          setSelectedAddons(selectedAddons.filter(a => a.test_id !== addon.test_id));
+                        }
+                      }}
+                    />
+                    {addon.test_name} (₹{addon.test_price})
+                  </label>
+                ))}
+                <PlusButton type="button" onClick={() => setShowAddonModal(true)} style={{ height: '32px', width: '32px', fontSize: '1rem' }}>+</PlusButton>
+              </div>
             </FormGroup>
 
             {tableData.length > 0 ? (
@@ -1218,6 +1326,7 @@ const Packagecreation = () => {
                       <Th>Package ID</Th>
                       <Th>Package Name</Th>
                       <Th>Gender</Th>
+                      <Th>Extra Barcodes</Th>
                       <Th>Tests (Read-Only)</Th>
                       <Th>Actions</Th>
                     </tr>
@@ -1255,6 +1364,16 @@ const Packagecreation = () => {
                               </RadioGroup>
                             ) : (pkg.gender || "Common")}
                           </Td>
+                          <Td center>
+                            {isEditing ? (
+                              <Input 
+                                type="number"
+                                defaultValue={pkg.extra_barcode ?? 3} 
+                                id={`edit_extra_${pkg.package_id}`} 
+                                style={{ padding: '0.5rem', width: '60px' }} 
+                              />
+                            ) : (pkg.extra_barcode ?? 3)}
+                          </Td>
                           <Td style={{ fontSize: '0.8rem' }}>
                             <div style={{ maxHeight: '60px', overflowY: 'auto' }}>
                               {(pkg.investigations || []).map(i => i.testname).join(', ')}
@@ -1268,7 +1387,8 @@ const Packagecreation = () => {
                                     const newName = document.getElementById(`edit_name_${pkg.package_id}`).value;
                                     const selectedRadio = document.querySelector(`input[name="edit_gender_${pkg.package_id}"]:checked`);
                                     const newGender = selectedRadio ? selectedRadio.value : (pkg.gender || "Common");
-                                    handleUpdatePackage(pkg.package_id, newName, newGender);
+                                    const newExtra = document.getElementById(`edit_extra_${pkg.package_id}`).value;
+                                    handleUpdatePackage(pkg.package_id, newName, newGender, newExtra);
                                   }}
                                   style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
                                 >
@@ -1297,6 +1417,105 @@ const Packagecreation = () => {
                 </Table>
               </TableContainer>
             )}
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* Dynamic Field Modal */}
+      {showDynamicFieldModal && (
+        <ModalOverlay onClick={() => setShowDynamicFieldModal(false)}>
+          <ModalBox onClick={e => e.stopPropagation()}>
+            <ModalTitle>Create Dynamic Field</ModalTitle>
+            <ModalLabel>Field Name</ModalLabel>
+            <ModalInput 
+              value={newDynamicField.field_name}
+              onChange={e => setNewDynamicField({...newDynamicField, field_name: e.target.value})}
+              placeholder="e.g. Example"
+            />
+            <ModalLabel>Values (Key-Value Pairs)</ModalLabel>
+            {newDynamicField.field_values.map((kv, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                <ModalInput 
+                  placeholder="Key" 
+                  value={kv.key} 
+                  onChange={e => {
+                    const newValues = [...newDynamicField.field_values];
+                    newValues[idx].key = e.target.value;
+                    setNewDynamicField({...newDynamicField, field_values: newValues});
+                  }}
+                />
+                <ModalInput 
+                  placeholder="Value" 
+                  value={kv.value} 
+                  onChange={e => {
+                    const newValues = [...newDynamicField.field_values];
+                    newValues[idx].value = e.target.value;
+                    setNewDynamicField({...newDynamicField, field_values: newValues});
+                  }}
+                />
+                <DeleteIcon className="bi bi-trash" onClick={() => {
+                  const newValues = newDynamicField.field_values.filter((_, i) => i !== idx);
+                  setNewDynamicField({...newDynamicField, field_values: newValues});
+                }} />
+              </div>
+            ))}
+            <SubmitButton type="button" onClick={() => setNewDynamicField({...newDynamicField, field_values: [...newDynamicField.field_values, {key: "", value: ""}]})} style={{ background: '#3F72AF', width: '100%', marginBottom: '1rem' }}>
+              + Add Key-Value Pair
+            </SubmitButton>
+            <ModalActions>
+              <CancelButton onClick={() => setShowDynamicFieldModal(false)}>Cancel</CancelButton>
+              <SubmitButton onClick={async () => {
+                try {
+                  const idRes = await axios.get(`${Labbaseurl}dynamic_fields/next-id/`);
+                  const payload = { ...newDynamicField, field_id: idRes.data.field_id };
+                  await axios.post(`${Labbaseurl}dynamic_fields/`, payload);
+                  fetchDynamicFields();
+                  setShowDynamicFieldModal(false);
+                  setNewDynamicField({ field_id: "", field_name: "", field_values: [{ key: "", value: "" }], is_active: true });
+                  toast.success("Dynamic field created!");
+                } catch (err) {
+                  toast.error("Failed to create dynamic field");
+                }
+              }}>Create</SubmitButton>
+            </ModalActions>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* Addon Modal */}
+      {showAddonModal && (
+        <ModalOverlay onClick={() => setShowAddonModal(false)}>
+          <ModalBox onClick={e => e.stopPropagation()}>
+            <ModalTitle>Create Add-On Investigation</ModalTitle>
+            <ModalLabel>Name</ModalLabel>
+            <ModalInput 
+              value={newAddon.test_name}
+              onChange={e => setNewAddon({...newAddon, test_name: e.target.value})}
+              placeholder="e.g. Sample name"
+            />
+            <ModalLabel>Price</ModalLabel>
+            <ModalInput 
+              type="number"
+              value={newAddon.test_price}
+              onChange={e => setNewAddon({...newAddon, test_price: e.target.value})}
+              placeholder="0.00"
+            />
+            <ModalActions>
+              <CancelButton onClick={() => setShowAddonModal(false)}>Cancel</CancelButton>
+              <SubmitButton onClick={async () => {
+                try {
+                  const idRes = await axios.get(`${Labbaseurl}addon_investigations/next-id/`);
+                  const payload = { ...newAddon, test_id: idRes.data.test_id };
+                  await axios.post(`${Labbaseurl}addon_investigations/`, payload);
+                  fetchAddons();
+                  setShowAddonModal(false);
+                  setNewAddon({ test_id: "", test_name: "", test_price: "", is_active: true });
+                  toast.success("Add-on created!");
+                } catch (err) {
+                  toast.error("Failed to create add-on");
+                }
+              }}>Create</SubmitButton>
+            </ModalActions>
           </ModalBox>
         </ModalOverlay>
       )}

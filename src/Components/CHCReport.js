@@ -769,7 +769,7 @@ const CHCReport = () => {
         const historyItems = [
           { label: "Employee ID", value: patientDetails.patient_id || "N/A" },
           { label: "Department", value: patientDetails.department || "N/A" },
-          { label: "Medical History", value: patientDetails.medical_history?.patient_history || "Nil Significant" }
+          { label: "Medical History", value: patientDetails.medical_history?.patient_history || "No Clinical History" }
         ];
 
         historyItems.forEach(item => {
