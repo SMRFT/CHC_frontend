@@ -271,15 +271,17 @@ const BarcodeContainer = styled.div`
   }
 
   .barcode-number {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 20px;
+    font-weight: 700;
   }
 
   .container-name {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     color: #2d3748;
     margin-top: 2px;
+    width: 100%;
+    text-align: right;
   }
 
   /* Print specific overrides */
@@ -320,7 +322,7 @@ const BarcodeDisplay = ({ value, label, patient }) => {
                 <svg ref={svgRef}></svg>
             </div>
             <div className="barcode-number">{value}</div>
-            <div className="container-name">{label || "Barcode"}</div>
+            <div className="container-name">{label || ""}</div>
         </div>
     );
 };
@@ -456,6 +458,8 @@ export default function OffsitePatients() {
         const testDetails = parseDetails(patient.testdetails);
         const chcDetails = parseDetails(patient.chctestdetails);
         const combinedTests = [...testDetails, ...chcDetails];
+        const addonTests = parseDetails(patient.addon_investigation);
+        const dynFields = parseDetails(patient.dynamic_fields);
 
         doc.open();
         doc.write(`
@@ -568,11 +572,32 @@ export default function OffsitePatients() {
                                                     <tr>
                                                         <td style="text-align: center;">${idx + 1}</td>
                                                         <td>${t.testname || t.test_name || "Unknown"}</td>
-                                                    
                                                     </tr>
-                                                `).join('') : '<tr><td colspan="3" style="text-align: center;">No tests added</td></tr>'}
+                                                `).join('') : '<tr><td colspan="2" style="text-align: center;">No tests added</td></tr>'}
                                             </tbody>
                                         </table>
+
+                                        ${addonTests.length > 0 ? `
+                                            <div style="font-weight: bold; margin-top: 15px;">ADD-ON INVESTIGATIONS :</div>
+                                            <table class="test-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 40px;">S.No</th>
+                                                        <th>Add-on Investigation</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${addonTests.map((t, idx) => `
+                                                        <tr>
+                                                            <td style="text-align: center;">${idx + 1}</td>
+                                                            <td>${t.test_name || t.name || "-"}</td>
+                                                            
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        ` : ''}
+
 
                                         <div class="financials" style="font-size: 10px; border-top: 1px solid #000; margin-top: 10px; padding-top: 5px;">
                                             <table style="width: 100%;">
@@ -635,23 +660,34 @@ export default function OffsitePatients() {
     const handleGenerateBarcodes = () => {
         if (!currentPatient || !selectedTests.length) return;
 
-        const uniqueContainers = [...new Set(selectedTests
-            .map(t => t.collection_container)
-            .filter(c => c && c.trim() !== "")
-        )];
+        // Group by both container and suffix to ensure we get unique barcodes for each combination
+        const containerSuffixPairs = selectedTests.reduce((acc, t) => {
+            const container = (t.collection_container || "").trim();
+            if (container === "" || container.toLowerCase() === "n/a") return acc;
+            
+            const suffix = (t.suffix || "").trim();
+            const key = `${container}|${suffix}`;
+            
+            if (!acc[key]) {
+                acc[key] = { container, suffix };
+            }
+            return acc;
+        }, {});
 
-        // Generate barcodes for unique containers without sequential suffix as per request
-        const generated = uniqueContainers.map((container) => ({
-            label: container,
-            barcodeValue: currentPatient.barcode
+        // Generate barcodes for unique container-suffix pairs
+        const generated = Object.values(containerSuffixPairs).map((pair) => ({
+            label: pair.container,
+            barcodeValue: pair.suffix ? `${currentPatient.barcode}-${pair.suffix}` : currentPatient.barcode
         }));
 
-        // Add one extra general barcode label
-        generated.push({
-            label: "Barcode",
-            barcodeValue: currentPatient.barcode
-        });
-
+        // Add extra general barcode labels
+        const extraCount = currentPatient.extra_barcode != null ? parseInt(currentPatient.extra_barcode, 10) : 3;
+        for (let i = 0; i < extraCount; i++) {
+            generated.push({
+                label: "",
+                barcodeValue: currentPatient.barcode
+            });
+        }
         setContainerBarcodes(generated);
         setShowBarcodes(true);
     };
@@ -723,17 +759,18 @@ export default function OffsitePatients() {
                             width: 100%;
                         }
                         .barcode-number {
-                            font-size: 9px;
+                            font-size: 17px;
                             margin: 0;
                             text-align: left;
                             width: 100%;
-                            font-weight: 500;
+                            font-weight: 700;
+                            line-height: 1;
                         }
                         .container-name {
-                            font-size: 8px;
+                            font-size: 10px;
                             font-weight: bold;
                             margin: 1px 0 0 0;
-                            text-align: left;
+                            text-align: right;
                             width: 100%;
                             color: #333;
                         }
@@ -746,7 +783,7 @@ export default function OffsitePatients() {
                         }
                         svg {
                             width: 35mm !important;
-                            height: 12mm !important;
+                            height: 10mm !important;
                             align-self: flex-start;
                         }
                     </style>
@@ -942,6 +979,7 @@ export default function OffsitePatients() {
                                                 <th>ID</th>
                                                 <th>Test Name</th>
                                                 <th>Container</th>
+                                                <th>Suffix</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -950,6 +988,7 @@ export default function OffsitePatients() {
                                                     <td className="test-id">{t.test_id}</td>
                                                     <td className="test-name">{t.test_name}</td>
                                                     <td className="test-container">{t.collection_container}</td>
+                                                    <td style={{ fontWeight: '700', color: '#E53E3E' }}>{t.suffix || "-"}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

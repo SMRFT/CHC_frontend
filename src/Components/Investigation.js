@@ -5,7 +5,7 @@ import styled from "styled-components"
 import axios from "axios"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { Printer, Edit2 } from "lucide-react"
+import { Printer, Edit2, AlertCircle } from "lucide-react"
 
 import HeaderImg from "./Images/Header.png"
 import FooterImg from "./Images/Footer.png"
@@ -351,6 +351,24 @@ const DEFAULT_VITALS = {
   spo2: "",
 }
 
+const StatusBanner = styled.div`
+  background: #fff3cd;
+  color: #856404;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 1px solid #ffeeba;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+
+  svg { color: #856404; }
+`;
+
 export default function Investigation() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
@@ -360,7 +378,7 @@ export default function Investigation() {
     gender: "",
     barcode: "",
     vitals: { height_cm: "", weight_kg: "", bmi: "", blood_pressure: "", spo2: "" },
-    patient_history: "",
+    patient_history: "No Clinical History",
     visual_acuity: {
       distance: { right: "", left: "" },
       nearVision: { right: "", left: "" },
@@ -370,6 +388,8 @@ export default function Investigation() {
       remarks: "",
     },
     test_results: [], // Dynamic array of test objects
+    dynamic_fields: [], // Dynamic investigation fields
+    status: "pending",
   })
 
   const [employees, setEmployees] = useState([])
@@ -427,8 +447,8 @@ export default function Investigation() {
                     .vitals-section { margin-top: 30px; }
                     .vitals-header { font-weight: bold; font-size: 16px; margin-bottom: 15px; text-decoration: underline; }
                     .vitals-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    .vitals-grid td { padding: 8px; border: 1px solid #ccc; font-size: 14px; }
-                    .vitals-label { font-weight: bold; background: #f7f7f7; width: 40%; }
+                    .vitals-grid td { padding: 8px; border: 1px solid #ccc; font-size: 13px; }
+                    .vitals-label { font-weight: bold; width: 40%; }
                 </style>
             </head>
             <body>
@@ -461,17 +481,26 @@ export default function Investigation() {
                                     <table>
                                         <tr>
                                             <td class="label">Patient History:</td>
-                                            <td class="value">${emp.patient_history || "-"}</td>
+                                            <td class="value">${emp.patient_history || "No Clinical History"}</td>
                                         </tr>
                                     </table>
                                     <div class="vitals-section">
                                         <div class="vitals-header">VITALS:</div>
                                         <table class="vitals-grid">
-                                            <tr><td class="vitals-label">Height (cm)</td><td>${vitals.height_cm || "-"}</td></tr>
-                                            <tr><td class="vitals-label">Weight (kg)</td><td>${vitals.weight_kg || "-"}</td></tr>
-                                            <tr><td class="vitals-label">BMI</td><td>${vitals.bmi || "-"}</td></tr>
-                                            <tr><td class="vitals-label">Blood Pressure</td><td>${vitals.blood_pressure || "-"}</td></tr>
-                                            <tr><td class="vitals-label">SpO2</td><td>${vitals.spo2 || "-"}</td></tr>
+                                            <thead>
+                                                <tr>
+                                                    <th style="background: #f7f7f7; border: 1px solid #ccc; padding: 8px; text-align: left;">Parameter</th>
+                                                    <th style="background: #f7f7f7; border: 1px solid #ccc; padding: 8px; text-align: left;">Value</th>
+                                                    <th style="background: #f7f7f7; border: 1px solid #ccc; padding: 8px; text-align: left;">Ref Range</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr><td class="vitals-label">Height (cm)</td><td>${vitals.height_cm || "-"}</td><td>-</td></tr>
+                                                <tr><td class="vitals-label">Weight (kg)</td><td>${vitals.weight_kg || "-"}</td><td>-</td></tr>
+                                                <tr><td class="vitals-label">BMI</td><td>${vitals.bmi || "-"} ${vitals.bmi_status ? `(${vitals.bmi_status})` : ""}</td><td>&lt;25</td></tr>
+                                                <tr><td class="vitals-label">Blood Pressure</td><td>${vitals.blood_pressure || "-"} ${vitals.BP_status ? `(${vitals.BP_status})` : ""}</td><td>140/90 - 90/60</td></tr>
+                                                <tr><td class="vitals-label">SpO2</td><td>${vitals.spo2 || "-"} ${vitals.spo2_status ? `(${vitals.spo2_status})` : ""}</td><td>60 - 100</td></tr>
+                                            </tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -659,7 +688,7 @@ export default function Investigation() {
         gender: selectedEmployee.gender,
         barcode: selectedEmployee.barcode,
         vitals: parseJson(selectedEmployee.vitals),
-        patient_history: selectedEmployee.patient_history || "",
+        patient_history: selectedEmployee.patient_history || "No Clinical History",
         visual_acuity: (() => {
           const defaultVA = {
             distance: { right: "", left: "" },
@@ -682,7 +711,9 @@ export default function Investigation() {
           });
           return mergedVA;
         })(),
-        test_results: activeTests || []
+        test_results: activeTests || [],
+        dynamic_fields: parseJson(selectedEmployee.dynamic_fields, []),
+        status: selectedEmployee.status || "pending"
       }))
     }
     setShowForm(true)
@@ -698,8 +729,9 @@ export default function Investigation() {
       gender: "",
       barcode: "",
       vitals: DEFAULT_VITALS,
-      patient_history: "",
+      patient_history: "No Clinical History",
       test_results: [],
+      status: "pending",
     })
     setFiles({})
   }
@@ -939,6 +971,7 @@ export default function Investigation() {
 
       // Sending the dynamic test_results array
       fd.append("test_results", JSON.stringify(form.test_results))
+      fd.append("dynamic_fields", JSON.stringify(form.dynamic_fields))
 
       // Mapping files: we'll use keys like "file_{idx}"
       Object.keys(files).forEach(testIdx => {
@@ -1111,6 +1144,13 @@ export default function Investigation() {
             <PlainTitle>Employee Investigation</PlainTitle>
           </PlainHeader>
 
+          {form.status === 'approved' && (
+            <StatusBanner>
+              <AlertCircle size={24} />
+              This report is approved and cannot be edited.
+            </StatusBanner>
+          )}
+
           <form onSubmit={handleSubmit}>
             <Grid>
               <Field>
@@ -1147,11 +1187,11 @@ export default function Investigation() {
               </Field>
               <Field>
                 <Label>Blood Pressure (mmHg)</Label>
-                <Input name="blood_pressure" value={form.vitals.blood_pressure} onChange={handleVitalsChange} />
+                <Input name="blood_pressure" value={form.vitals.blood_pressure} onChange={handleVitalsChange} disabled={form.status === 'approved'} />
               </Field>
               <Field>
                 <Label>SpO2 (%)</Label>
-                <Input name="spo2" value={form.vitals.spo2} onChange={handleVitalsChange} />
+                <Input name="spo2" value={form.vitals.spo2} onChange={handleVitalsChange} disabled={form.status === 'approved'} />
               </Field>
 
               <Field style={{ gridColumn: "1 / -1" }}>
@@ -1162,6 +1202,7 @@ export default function Investigation() {
                     rows="4" 
                     value={form.patient_history} 
                     onChange={handleChange} 
+                    disabled={form.status === 'approved'}
                     style={{ paddingRight: '100px' }}
                     placeholder="Enter patient history or use the Edit tool..."
                   />
@@ -1194,6 +1235,47 @@ export default function Investigation() {
                 </div>
               </Field>
             </Grid>
+
+            {/* Dynamic Fields Section (Moved after Patient History) */}
+            {form.dynamic_fields && form.dynamic_fields.length > 0 && (
+              <div style={{ marginTop: '25px', marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+                <h3 style={{ color: '#3F72AF', marginBottom: '20px', textTransform: 'uppercase' }}>Additional Investigation Fields</h3>
+                {form.dynamic_fields.map((field, fIdx) => (
+                  <div key={field.field_id} style={{ marginBottom: '20px' }}>
+                    <h4 style={{ color: '#4A5568', marginBottom: '10px', fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>{field.field_name}</h4>
+                    <TwoColGrid>
+                      {(field.field_values || []).map((valObj, vIdx) => {
+                        // Support both formats: {key: val} and {key: "...", value: "..."}
+                        const key = valObj.key || Object.keys(valObj)[0];
+                        const value = valObj.value !== undefined ? valObj.value : valObj[key];
+                        
+                        return (
+                          <Field key={vIdx}>
+                            <Label style={{ fontSize: '14px', color: '#718096', fontWeight: '600' }}>{key}</Label>
+                            <Input 
+                              value={value || ""}
+                              placeholder={`Enter ${key}...`}
+                              onChange={(e) => {
+                                const newFields = [...form.dynamic_fields];
+                                const newValObj = {...newFields[fIdx].field_values[vIdx]};
+                                if (newValObj.value !== undefined) {
+                                  newValObj.value = e.target.value;
+                                } else {
+                                  newValObj[key] = e.target.value;
+                                }
+                                newFields[fIdx].field_values[vIdx] = newValObj;
+                                setForm({...form, dynamic_fields: newFields});
+                              }}
+                              disabled={form.status === 'approved'}
+                            />
+                          </Field>
+                        );
+                      })}
+                    </TwoColGrid>
+                  </div>
+                ))}
+              </div>
+            )}
             <br />
             <br />
             {/* 100% Dynamic Rendering of Test Sections */}
@@ -1218,8 +1300,8 @@ export default function Investigation() {
                     ].map(item => (
                       <RowGrid key={item.key} style={{ alignItems: 'center', marginBottom: '10px' }}>
                         <div style={{ fontWeight: 800, color: '#112D4E', width: '150px' }}>{item.label}</div>
-                        <Input placeholder="Right Eye" value={va[item.key]?.right ?? ""} onChange={e => setVA(item.key, 'right', e.target.value)} />
-                        <Input placeholder="Left Eye" value={va[item.key]?.left ?? ""} onChange={e => setVA(item.key, 'left', e.target.value)} />
+                        <Input placeholder="Right Eye" value={va[item.key]?.right ?? ""} onChange={e => setVA(item.key, 'right', e.target.value)} disabled={form.status === 'approved'} />
+                        <Input placeholder="Left Eye" value={va[item.key]?.left ?? ""} onChange={e => setVA(item.key, 'left', e.target.value)} disabled={form.status === 'approved'} />
                       </RowGrid>
                     ))}
                     <br />
@@ -1229,6 +1311,7 @@ export default function Investigation() {
                         <TextArea
                           value={form.visual_acuity.complaints || ""}
                           onChange={e => handleVisualAcuityChange("complaints", null, e.target.value)}
+                          disabled={form.status === 'approved'}
                           placeholder="Complaints..."
                           rows={3}
                         />
@@ -1238,6 +1321,7 @@ export default function Investigation() {
                         <TextArea
                           value={form.visual_acuity.remarks || ""}
                           onChange={e => handleVisualAcuityChange("remarks", null, e.target.value)}
+                          disabled={form.status === 'approved'}
                           placeholder="Remarks..."
                           rows={3}
                         />
@@ -1250,6 +1334,7 @@ export default function Investigation() {
                           <TextArea
                             value={test.notes || ""}
                             onChange={e => handleTestChange(idx, "notes", e.target.value)}
+                            disabled={form.status === 'approved'}
                             placeholder="Enter notes..."
                             rows={3}
                             style={{ paddingRight: '100px' }}
@@ -1304,7 +1389,7 @@ export default function Investigation() {
                             ))}
                           </div>
                         )}
-                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} disabled={form.status === 'approved'} />
                         {files[idx] && files[idx].length > 0 && (
                           <div style={{ marginTop: '5px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1355,7 +1440,7 @@ export default function Investigation() {
                               ))}
                             </div>
                           )}
-                          <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                          <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} disabled={form.status === 'approved'} />
                           {files[idx] && files[idx].length > 0 && (
                             <div style={{ marginTop: '5px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1380,6 +1465,7 @@ export default function Investigation() {
                             <TextArea
                               value={test.notes || ""}
                               onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                              disabled={form.status === 'approved'}
                               placeholder="Notes..."
                               rows={3}
                               style={{ width: '100%', paddingRight: '100px' }}
@@ -1417,6 +1503,7 @@ export default function Investigation() {
                         <TextArea
                           value={test.results?.report || ""}
                           onChange={(e) => handleTestChange(idx, 'results', { report: e.target.value }, true)}
+                          disabled={form.status === 'approved'}
                           placeholder="Clinical Report..."
                           rows={6}
                         />
@@ -1454,7 +1541,7 @@ export default function Investigation() {
                             ))}
                           </div>
                         )}
-                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} />
+                        <Input type="file" multiple onChange={(e) => handleTestFileChange(e, idx)} disabled={form.status === 'approved'} />
                         {files[idx] && files[idx].length > 0 && (
                           <div style={{ marginTop: '5px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1479,6 +1566,7 @@ export default function Investigation() {
                           <TextArea
                             value={test.notes || ""}
                             onChange={(e) => handleTestChange(idx, 'notes', e.target.value)}
+                            disabled={form.status === 'approved'}
                             placeholder="Enter detailed notes..."
                             rows={4}
                             style={{ paddingRight: '100px' }}
@@ -1515,6 +1603,7 @@ export default function Investigation() {
                         <TextArea
                           value={test.results?.report || ""}
                           onChange={(e) => handleTestChange(idx, 'results', { report: e.target.value }, true)}
+                          disabled={form.status === 'approved'}
                           placeholder="Enter clinical report..."
                           rows={6}
                         />
@@ -1524,11 +1613,10 @@ export default function Investigation() {
                 </div>
               );
             })}
-
             <br />
 
-            <Button type="submit" disabled={uploading}>
-              {uploading ? `Uploading ${progress}%` : "Submit All Results"}
+            <Button type="submit" disabled={uploading || form.status === 'approved'}>
+              {form.status === 'approved' ? "Report Approved (Read Only)" : uploading ? `Uploading ${progress}%` : "Submit All Results"}
             </Button>
           </form>
         </FormContainer>

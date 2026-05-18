@@ -552,14 +552,51 @@ export default function DoctorApprovalInvestigations() {
 
   const renderVitals = (vitals) => {
     if (!vitals) return "-";
-    const parts = [];
-    if (vitals.height_cm) parts.push(`H: ${vitals.height_cm}cm`);
-    if (vitals.weight_kg) parts.push(`W: ${vitals.weight_kg}kg`);
-    if (vitals.bmi) parts.push(`BMI: ${vitals.bmi}`);
-    if (vitals.blood_pressure) parts.push(`BP: ${vitals.blood_pressure}`);
-    if (vitals.spo2) parts.push(`SpO2: ${vitals.spo2}%`);
-    return parts.length > 0 ? parts.join(", ") : "-";
+    
+    const getStatusColor = (status) => {
+      if (!status) return 'inherit';
+      const s = status.toLowerCase();
+      if (s === 'normal' || s === 'normal') return '#10b981'; // Green
+      if (s.includes('high') || s.includes('obese') || s.includes('obeise')) return '#f43f5e'; // Red
+      if (s.includes('low') || s.includes('over weight')) return '#f59e0b'; // Amber
+      return '#64748b';
+    };
+
+    const renderPart = (label, value, status) => {
+      if (!value) return null;
+      return (
+        <span key={label} style={{ marginRight: '10px', display: 'inline-block' }}>
+          <strong style={{ fontSize: '11px', color: '#64748b' }}>{label}:</strong> {value}
+          {status && (
+            <span style={{ 
+              marginLeft: '4px', 
+              fontSize: '10px', 
+              fontWeight: 800, 
+              color: getStatusColor(status),
+              textTransform: 'uppercase'
+            }}>
+              ({status})
+            </span>
+          )}
+        </span>
+      );
+    };
+
+    const items = [
+      renderPart('H', vitals.height_cm ? `${vitals.height_cm}cm` : null),
+      renderPart('W', vitals.weight_kg ? `${vitals.weight_kg}kg` : null),
+      renderPart('BMI', vitals.bmi, vitals.bmi_status),
+      renderPart('BP', vitals.blood_pressure, vitals.BP_status),
+      renderPart('SpO2', vitals.spo2 ? `${vitals.spo2}%` : null, vitals.spo2_status),
+    ].filter(Boolean);
+
+    return items.length > 0 ? (
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px' }}>
+        {items}
+      </div>
+    ) : "-";
   };
+
 
   const handleOpenModal = (inv) => {
     setSelectedInv(inv);
@@ -662,7 +699,7 @@ export default function DoctorApprovalInvestigations() {
               <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#112D4E', fontSize: '14px' }}>Patient Context</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
-                  <div><strong>History:</strong> {selectedInv.patient_history || "No history provided"}</div>
+                  <div><strong>History:</strong> {selectedInv.patient_history || "No Clinical History"}</div>
                   <div><strong>Vitals:</strong> {renderVitals(selectedInv.vitals)}</div>
                 </div>
               </div>
