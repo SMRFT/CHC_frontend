@@ -212,8 +212,9 @@ const Message = styled.div`
 /* ===== Component ===== */
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '', role: '', password: '', confirmPassword: ''
+    name: '', role: '', password: '', confirmPassword: '', company_id: ''
   });
+  const [companies, setCompanies] = useState([]);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [message, setMessage] = useState('');
@@ -225,6 +226,20 @@ const Register = () => {
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
+
+  React.useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get(`${Labbaseurl}companies/`);
+        const companyList = Array.isArray(res.data) ? res.data : (res.data.data || []);
+        // Only keep active companies
+        setCompanies(companyList.filter(c => c.is_active));
+      } catch (err) {
+        console.error('Failed to fetch companies:', err);
+      }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
 
   const strength = (() => {
     const p = formData.password || '';
@@ -251,6 +266,7 @@ const Register = () => {
         role: formData.role,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
+        company_id: formData.company_id
       };
       await axios.post(`${Labbaseurl}registration/`, requestData);
       setMessage('Registration successful!');
@@ -279,9 +295,9 @@ const Register = () => {
           <Form onSubmit={handleSubmit}>
             <FormGrid>
               <FormGroup>
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">User Name (Login ID)</Label>
                 <Input
-                  id="name" type="text" name="name" placeholder="Enter your full name"
+                  id="name" type="text" name="name" placeholder="Enter your full name or login ID"
                   value={formData.name} onChange={handleChange} required
                 />
               </FormGroup>
@@ -294,6 +310,18 @@ const Register = () => {
                   <option value="Company">Company</option>
                 </Select>
               </FormGroup>
+
+              {formData.role === 'Company' && (
+                <FormGroup>
+                  <Label htmlFor="company_id">Select Company</Label>
+                  <Select id="company_id" name="company_id" value={formData.company_id} onChange={handleChange} required>
+                    <option value="">Select an available company</option>
+                    {companies.map(c => (
+                      <option key={c.company_id} value={c.company_id}>{c.company_name}</option>
+                    ))}
+                  </Select>
+                </FormGroup>
+              )}
 
               <FormGroup>
                 <Label htmlFor="password">Password</Label>

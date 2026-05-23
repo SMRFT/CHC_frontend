@@ -194,6 +194,9 @@ const Login = () => {
       toast.success("Login Successfully!", { autoClose: 2000 });
       localStorage.setItem("role", data.role);
       localStorage.setItem("name", data.name);
+      if (data.company_id) {
+        localStorage.setItem("company_id", data.company_id);
+      }
       setTimeout(() => navigateRole(data.role), 2000);
     } catch (err) {
       const msg =
