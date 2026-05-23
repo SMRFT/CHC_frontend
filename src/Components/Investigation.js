@@ -502,9 +502,123 @@ export default function Investigation() {
   const [debouncedSearch, setDebouncedSearch] = useState("") // debounced value
   // Inside Investigation component
   const [activeNoteIdx, setActiveNoteIdx] = useState(null); // Tracks the index of the test being edited
-  // Overall status filter
   const [statusFilter, setStatusFilter] = useState("any")
   const [pendingTestFilter, setPendingTestFilter] = useState("any")
+
+  // Bulk Upload State
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkUploadTestId, setBulkUploadTestId] = useState("");
+  const [bulkUploadFiles, setBulkUploadFiles] = useState([]);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState(0);
+
+  // New states for company and package selection in Bulk Upload
+  const [companies, setCompanies] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [bulkUploadCompanyId, setBulkUploadCompanyId] = useState("");
+  const [bulkUploadPackageId, setBulkUploadPackageId] = useState("");
+  const [bulkUploadAvailableTests, setBulkUploadAvailableTests] = useState([]);
+
+  // Fetch companies when modal opens
+  useEffect(() => {
+    if (showBulkUpload) {
+      const fetchCompanies = async () => {
+        try {
+          const res = await axios.get(`${Labbaseurl}companies/`);
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+          console.error("Error fetching companies:", err);
+          showToast("Failed to load companies for bulk upload", "error");
+        }
+      };
+      fetchCompanies();
+    }
+  }, [showBulkUpload, Labbaseurl]);
+
+  // Fetch packages when company changes
+  useEffect(() => {
+    if (bulkUploadCompanyId) {
+      const fetchPackages = async () => {
+        try {
+          const res = await axios.get(`${Labbaseurl}get_packages/?company_id=${bulkUploadCompanyId}`);
+          // The API returns an object { status: "success", data: [...] }
+          setPackages(res.data?.data || []);
+        } catch (err) {
+          console.error("Error fetching packages:", err);
+          showToast("Failed to load packages", "error");
+        }
+      };
+      fetchPackages();
+    } else {
+      setPackages([]);
+      setBulkUploadPackageId("");
+      setBulkUploadAvailableTests([]);
+      setBulkUploadTestId("");
+    }
+  }, [bulkUploadCompanyId, Labbaseurl]);
+
+  // Update available tests when package changes
+  useEffect(() => {
+    if (bulkUploadPackageId) {
+      const selectedPkg = packages.find(p => p.package_id === bulkUploadPackageId);
+      if (selectedPkg && selectedPkg.investigations) {
+        setBulkUploadAvailableTests(selectedPkg.investigations);
+      } else {
+        setBulkUploadAvailableTests([]);
+      }
+    } else {
+      setBulkUploadAvailableTests([]);
+    }
+    setBulkUploadTestId(""); // Reset selected test
+  }, [bulkUploadPackageId, packages]);
+
+
+  const handleBulkUploadSubmit = async () => {
+    if (!bulkUploadTestId || bulkUploadFiles.length === 0) {
+      showToast("Please select a test type and files to upload", "error");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("test_id", bulkUploadTestId);
+    bulkUploadFiles.forEach(file => {
+      formData.append("files", file);
+    });
+
+    setIsBulkUploading(true);
+    setBulkUploadProgress(0);
+
+    try {
+      const response = await axios.post(`${Labbaseurl}bulk_upload_investigation_files/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setBulkUploadProgress(percentCompleted);
+        }
+      });
+
+      if (response.status === 200) {
+        showToast(`Bulk upload successful! ${response.data.results?.success || 0} files processed.`, "success");
+        if (response.data.results?.failed > 0) {
+          console.warn("Bulk upload errors:", response.data.results.errors);
+          showToast(`${response.data.results.failed} files failed. See console for details.`, "error");
+        }
+        setShowBulkUpload(false);
+        setBulkUploadFiles([]);
+        setBulkUploadTestId("");
+        // Refresh data
+        refreshData(startDate, endDate);
+      }
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      showToast(error.response?.data?.error || "Bulk upload failed", "error");
+    } finally {
+      setIsBulkUploading(false);
+      setBulkUploadProgress(0);
+    }
+  };
 
   // Get all unique CHC test names from all loaded employee test results
   const uniqueCHCTests = useMemo(() => {
@@ -1301,8 +1415,91 @@ export default function Investigation() {
             <ExportWrap>
               <ExportBtn onClick={exportFilteredCsv}>Download CSV (Filtered)</ExportBtn>
               <ExportBtn onClick={exportPendingCsv}>Download CSV (Pending)</ExportBtn>
+              <FilterBtn onClick={() => setShowBulkUpload(true)}>Bulk Upload</FilterBtn>
             </ExportWrap>
           </FiltersBar>
+
+          {showBulkUpload && (
+            <ModalOverlay onClick={(e) => { if (e.target === e.currentTarget) setShowBulkUpload(false); }}>
+              <ModalContent>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, color: '#3F72AF' }}>Bulk Upload Investigation Files</h3>
+                  <X size={24} style={{ cursor: 'pointer', color: '#a0aec0' }} onClick={() => setShowBulkUpload(false)} />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <Label>Select Company</Label>
+                  <Select 
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e0', marginBottom: '15px', background: '#fff' }}
+                    value={bulkUploadCompanyId}
+                    onChange={(e) => setBulkUploadCompanyId(e.target.value)}
+                  >
+                    <option value="">-- Select a Company --</option>
+                    {companies.map(comp => (
+                      <option key={comp.company_id} value={comp.company_id}>{comp.company_name}</option>
+                    ))}
+                  </Select>
+
+                  {bulkUploadCompanyId && (
+                    <>
+                      <Label>Select Package</Label>
+                      <Select 
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e0', marginBottom: '15px', background: '#fff' }}
+                        value={bulkUploadPackageId}
+                        onChange={(e) => setBulkUploadPackageId(e.target.value)}
+                      >
+                        <option value="">-- Select a Package --</option>
+                        {packages.map(pkg => (
+                          <option key={pkg.package_id} value={pkg.package_id}>{pkg.package_name}</option>
+                        ))}
+                      </Select>
+                    </>
+                  )}
+
+                  {bulkUploadPackageId && (
+                    <>
+                      <Label>Select Test Type</Label>
+                      <Select 
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid #cbd5e0', marginBottom: '15px', background: '#fff' }}
+                        value={bulkUploadTestId}
+                        onChange={(e) => setBulkUploadTestId(e.target.value)}
+                      >
+                        <option value="">-- Select a Test --</option>
+                        {bulkUploadAvailableTests.map((test, idx) => (
+                           <option key={test.test_id || idx} value={test.test_id}>{test.testname}</option>
+                        ))}
+                      </Select>
+                    </>
+                  )}
+
+                  {bulkUploadTestId && (
+                    <>
+                      <Label>Select Files (Filenames must contain/be barcodes)</Label>
+                      <Input 
+                        type="file" 
+                        multiple 
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                        onChange={(e) => setBulkUploadFiles(Array.from(e.target.files))}
+                      />
+                      {bulkUploadFiles.length > 0 && (
+                        <div style={{ marginTop: '10px', fontSize: '14px', color: '#4a5568' }}>
+                          {bulkUploadFiles.length} file(s) selected
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <ClearBtn onClick={() => setShowBulkUpload(false)}>Cancel</ClearBtn>
+                  <Button 
+                    onClick={handleBulkUploadSubmit} 
+                    disabled={isBulkUploading || !bulkUploadTestId || bulkUploadFiles.length === 0}
+                  >
+                    {isBulkUploading ? `Uploading... ${bulkUploadProgress}%` : "Upload Files"}
+                  </Button>
+                </div>
+              </ModalContent>
+            </ModalOverlay>
+          )}
 
           {/* Completion per test cards */}
           {Object.keys(testStats).length > 0 && (
