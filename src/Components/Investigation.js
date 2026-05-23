@@ -5,7 +5,7 @@ import styled from "styled-components"
 import axios from "axios"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { Printer, Edit2, AlertCircle } from "lucide-react"
+import { Printer, Edit2, AlertCircle, X } from "lucide-react"
 
 import HeaderImg from "./Images/Header.png"
 import FooterImg from "./Images/Footer.png"
@@ -143,6 +143,19 @@ const ClearBtn = styled.button`
   &:hover { background: #667eea; color: #fff; }
 `
 
+const FilterBtn = styled.button`
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 700;
+  transition: 0.2s;
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3); }
+  &:active { transform: translateY(0); }
+`
+
 // Export buttons
 const ExportWrap = styled.div`
   display: flex;
@@ -159,6 +172,34 @@ const ExportBtn = styled.button`
   font-weight: 700;
   transition: 0.2s;
   &:hover { background: #10b981; color: #fff; }
+`
+
+const CountBadge = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #eff6ff;
+  border: 2px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-family: inherit;
+  min-width: 100px;
+  
+  .label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #1d4ed8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  
+  .value {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1e40af;
+  }
 `
 
 const Table = styled.table`
@@ -369,6 +410,58 @@ const StatusBanner = styled.div`
   svg { color: #856404; }
 `;
 
+const TestStatsWrapper = styled.div`
+  margin-bottom: 2rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+`;
+
+const TestStatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const TestStatItem = styled.div`
+  padding: 1rem;
+  background: ${props => props.isActive ? '#eff6ff' : '#f8fafc'};
+  border: 2px solid ${props => props.isActive ? '#3b82f6' : '#e2e8f0'};
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  
+  &:hover { 
+    transform: translateY(-2px); 
+    border-color: #3b82f6;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  &:active { transform: translateY(0); }
+
+  .name { font-size: 0.8rem; font-weight: 700; color: ${props => props.isActive ? '#1d4ed8' : '#475569'}; margin-bottom: 0.5rem; }
+  .count { font-size: 1.25rem; font-weight: 800; color: #1e40af; }
+  .total { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
+  
+  ${props => props.isActive && `
+    &::after {
+      content: 'FILTER ACTIVE';
+      position: absolute;
+      top: -10px;
+      right: 10px;
+      background: #3b82f6;
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  `}
+`;
+
 export default function Investigation() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
@@ -411,6 +504,54 @@ export default function Investigation() {
   const [activeNoteIdx, setActiveNoteIdx] = useState(null); // Tracks the index of the test being edited
   // Overall status filter
   const [statusFilter, setStatusFilter] = useState("any")
+  const [pendingTestFilter, setPendingTestFilter] = useState("any")
+
+  // Get all unique CHC test names from all loaded employee test results
+  const uniqueCHCTests = useMemo(() => {
+    const testNames = new Set()
+    employees.forEach(emp => {
+      const results = emp.test_results || []
+      results.forEach(t => {
+        if (t.test_name) {
+          testNames.add(t.test_name)
+        }
+      })
+    })
+    return Array.from(testNames).sort()
+  }, [employees])
+
+  // Get completion stats per test dynamically from all loaded employees
+  const testStats = useMemo(() => {
+    const stats = {}
+    employees.forEach(emp => {
+      // Get all tests this employee is registered/billed for
+      const billable = emp.billing_testdetails || []
+      const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+      
+      // Get the saved test results if they exist
+      const results = emp.test_results || []
+      
+      chcBillable.forEach(bt => {
+        const testName = bt.test_name || bt.testname
+        if (testName) {
+          if (!stats[testName]) {
+            stats[testName] = { total: 0, completed: 0 }
+          }
+          stats[testName].total += 1
+          
+          // Check if there is a saved result for this test
+          const saved = results.find(t => String(t.test_id) === String(bt.test_id))
+          if (saved) {
+            const isDone = bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true
+            if (isDone) {
+              stats[testName].completed += 1
+            }
+          }
+        }
+      })
+    })
+    return stats
+  }, [employees])
 
   const handlePrintVitals = (emp) => {
     const iframe = document.createElement("iframe");
@@ -562,7 +703,17 @@ export default function Investigation() {
     return merged
   }
 
-  // Fetch employees & investigations on mount or date change
+  const handleFilterSubmit = async () => {
+    try {
+      const merged = await refreshData(startDate, endDate)
+      showToast(`${merged.length} records filtered successfully`, "success")
+    } catch (err) {
+      console.error(err)
+      showToast("Failed to filter employees", "error")
+    }
+  }
+
+  // Fetch employees & investigations on mount
   useEffect(() => {
     ; (async () => {
       try {
@@ -573,7 +724,7 @@ export default function Investigation() {
         showToast("Failed to load employees or investigations", "error")
       }
     })()
-  }, [Labbaseurl, startDate, endDate])
+  }, [Labbaseurl])
 
   // Debounce search input
   useEffect(() => {
@@ -605,17 +756,41 @@ export default function Investigation() {
         (emp.employee_name && String(emp.employee_name).toLowerCase().includes(q))
       if (!matchesSearch) return false
 
-      // Overall status filter (check if ALL tests have files)
-      const testResults = emp.test_results
-      const isArray = Array.isArray(testResults)
-      const overallApproved = isArray && testResults.length > 0 && testResults.every(t => (t.files || []).length > 0)
+      // Overall status filter (check if ALL tests are complete)
+      const billable = emp.billing_testdetails || []
+      const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+      const testResults = emp.test_results || []
+
+      const pendingList = chcBillable.filter(bt => {
+        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+        return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
+      })
+
+      const overallApproved = pendingList.length === 0
+      const hasNoFiles = chcBillable.every(bt => {
+        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+        return saved ? (saved.files || []).length === 0 : true
+      })
 
       if (statusFilter === "approved" && !overallApproved) return false
       if (statusFilter === "pending" && overallApproved) return false
+      if (statusFilter === "no_files" && !hasNoFiles) return false
+
+      // Pending test filter (didn't have file/result for a specific CHC Test)
+      if (pendingTestFilter !== "any") {
+        const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
+        if (!bt) return false
+        
+        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+        const isCompleted = saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false
+        if (isCompleted) {
+          return false
+        }
+      }
 
       return true
     })
-  }, [employees, debouncedSearch, startDate, endDate, statusFilter])
+  }, [employees, debouncedSearch, statusFilter, pendingTestFilter])
 
   const handleSelectEmployee = (empIdentifier) => {
     // Lookup by either employee_id or barcode
@@ -878,10 +1053,17 @@ export default function Investigation() {
   }
 
   const mapEmployeeToCsvRow = (emp) => {
+    const billable = emp.billing_testdetails || []
+    const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
     const results = emp.test_results || []
-
-    const overallStatus = results.length > 0 && results.every(t => (t.files || []).length > 0) ? "Complete" : "Pending"
-    const pendingTests = results.filter(t => (t.files || []).length === 0).map(t => t.test_name).join(", ")
+    
+    const pendingList = chcBillable.filter(bt => {
+      const saved = results.find(t => String(t.test_id) === String(bt.test_id))
+      return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
+    })
+    
+    const overallStatus = pendingList.length === 0 ? "Complete" : "Pending"
+    const pendingNames = pendingList.map(bt => bt.test_name || bt.testname).join(", ")
 
     return {
       employee_id: emp.employee_id ?? "",
@@ -891,7 +1073,7 @@ export default function Investigation() {
       barcode: emp.barcode ?? "",
       created_date: emp.created_date ?? "",
       status: overallStatus,
-      pending_for: pendingTests,
+      pending_for: pendingNames,
     }
   }
 
@@ -915,8 +1097,14 @@ export default function Investigation() {
     const pendingRows = filteredEmployees
       .filter(
         (emp) => {
-          const testResults = emp.test_results || [];
-          return testResults.some(t => (t.files || []).length === 0);
+          const billable = emp.billing_testdetails || []
+          const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+          const results = emp.test_results || []
+          
+          return chcBillable.some(bt => {
+            const saved = results.find(t => String(t.test_id) === String(bt.test_id))
+            return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
+          })
         }
       )
       .map(mapEmployeeToCsvRow)
@@ -1071,25 +1259,43 @@ export default function Investigation() {
                 <option value="any">Any</option>
                 <option value="approved">Approved / Complete</option>
                 <option value="pending">Pending</option>
+                <option value="no_files">No Files Uploaded</option>
               </Select>
             </SelectWrap>
+
+            <FilterBtn onClick={handleFilterSubmit}>
+              Filter
+            </FilterBtn>
 
             {(searchInput ||
               startDate ||
               endDate ||
-              statusFilter !== "any") && (
+              statusFilter !== "any" ||
+              pendingTestFilter !== "any") && (
                 <ClearBtn
-                  onClick={() => {
+                  onClick={async () => {
                     setSearchInput("")
                     setDebouncedSearch("")
-                    setStartDate(new Date())
-                    setEndDate(new Date())
+                    const today = new Date()
+                    setStartDate(today)
+                    setEndDate(today)
                     setStatusFilter("any")
+                    setPendingTestFilter("any")
+                    try {
+                      await refreshData(today, today)
+                    } catch (err) {
+                      console.error(err)
+                    }
                   }}
                 >
                   Clear Filters
                 </ClearBtn>
               )}
+
+            <CountBadge>
+              <span className="label">Filtered Patients</span>
+              <span className="value">{filteredEmployees.length} of {employees.length}</span>
+            </CountBadge>
 
             {/* Export actions */}
             <ExportWrap>
@@ -1098,41 +1304,107 @@ export default function Investigation() {
             </ExportWrap>
           </FiltersBar>
 
+          {/* Completion per test cards */}
+          {Object.keys(testStats).length > 0 && (
+            <TestStatsWrapper>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>
+                  COMPLETION PER TEST
+                  <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b', marginTop: '4px' }}>Click a test card to filter patients with <strong>PENDING</strong> status</div>
+                </div>
+                {pendingTestFilter !== "any" && (
+                  <ClearBtn 
+                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                    onClick={() => setPendingTestFilter("any")}
+                  >
+                    <X size={12} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Clear Filter
+                  </ClearBtn>
+                )}
+              </div>
+              <TestStatsGrid>
+                {Object.entries(testStats).map(([name, data]) => (
+                  <TestStatItem 
+                    key={name} 
+                    onClick={() => {
+                      if (pendingTestFilter === name) {
+                        setPendingTestFilter("any")
+                      } else {
+                        setPendingTestFilter(name)
+                      }
+                    }}
+                    isActive={pendingTestFilter === name}
+                  >
+                    <div className="name" style={{ textTransform: 'uppercase' }}>{name}</div>
+                    <div className="count">{data.completed} <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>done</span></div>
+                    <div className="total">of {data.total} patients</div>
+                  </TestStatItem>
+                ))}
+              </TestStatsGrid>
+            </TestStatsWrapper>
+          )}
+
           {filteredEmployees.length === 0 ? (
             <p>No employees found.</p>
           ) : (
             <Table>
               <thead>
                 <tr>
+                  <TableHeader style={{ width: "50px" }}>S.No</TableHeader>
                   <TableHeader>Employee ID</TableHeader>
                   <TableHeader>Employee Name</TableHeader>
                   <TableHeader>Age</TableHeader>
                   <TableHeader>Gender</TableHeader>
                   <TableHeader>Barcode</TableHeader>
+                  <TableHeader>Pending CHC Tests</TableHeader>
                   <TableHeader>Action</TableHeader>
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployees.map((emp) => (
-                  <TableRow key={emp.barcode || emp.employee_id} style={{ background: emp.vitals ? "#e6ffe6" : "inherit" }}>
-                    <TableCell>{emp.employee_id || "N/A"}</TableCell>
-                    <TableCell>{emp.employee_name}</TableCell>
-                    <TableCell>{emp.age}</TableCell>
-                    <TableCell>{emp.gender}</TableCell>
-                    <TableCell>{emp.barcode}</TableCell>
-                    <TableCell>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <Button onClick={() => handleSelectEmployee(emp.barcode || emp.employee_id)}>Open Investigation</Button>
-                        <Button
-                          style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-                          onClick={() => handlePrintVitals(emp)}
-                        >
-                          <Printer size={14} style={{ marginRight: '5px' }} /> Print Vitals
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredEmployees.map((emp, index) => {
+                  const billable = emp.billing_testdetails || []
+                  const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+                  const results = emp.test_results || []
+                  const pendingTests = chcBillable.filter(bt => {
+                    const saved = results.find(t => String(t.test_id) === String(bt.test_id))
+                    return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
+                  })
+
+                  return (
+                    <TableRow key={emp.barcode || emp.employee_id} style={{ background: emp.vitals ? "#e6ffe6" : "inherit" }}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{emp.employee_id || "N/A"}</TableCell>
+                      <TableCell>{emp.employee_name}</TableCell>
+                      <TableCell>{emp.age}</TableCell>
+                      <TableCell>{emp.gender}</TableCell>
+                      <TableCell>{emp.barcode}</TableCell>
+                      <TableCell>
+                        {pendingTests.length === 0 ? (
+                          <span style={{ color: "#10b981", fontWeight: "bold" }}>None (Complete)</span>
+                        ) : (
+                          <div>
+                            <span style={{ color: "#e53e3e", fontWeight: "bold" }}>
+                              {pendingTests.length} Pending
+                            </span>
+                            <div style={{ fontSize: "11px", color: "#718096", marginTop: "4px" }}>
+                              {pendingTests.map(bt => bt.test_name || bt.testname).join(", ")}
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <Button onClick={() => handleSelectEmployee(emp.barcode || emp.employee_id)}>Open Investigation</Button>
+                          <Button
+                            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                            onClick={() => handlePrintVitals(emp)}
+                          >
+                            <Printer size={14} style={{ marginRight: '5px' }} /> Print Vitals
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </tbody>
             </Table>
           )}
