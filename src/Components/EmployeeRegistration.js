@@ -446,6 +446,7 @@ const EmployeeRegistration = () => {
     experience: "",
     designation: "",
     employee_type: "",
+    contractor: "",
     registration_datetime: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
     payment_type: "Credit", // "Cash" or "Credit"
     cash_mode: "Cash",      // "Cash", "UPI", or "Card"
@@ -829,6 +830,7 @@ const EmployeeRegistration = () => {
       company_id: emp.company_id || prev.company_id,
       company_name: emp.company_name || prev.company_name,
       department: emp.department || "",
+      contractor: emp.contractor || "",
     }));
 
     // If company changed, fetch its packages
@@ -1006,6 +1008,7 @@ const EmployeeRegistration = () => {
       department: formData.department,
       email: formData.email,
       mobile: formData.mobile,
+      contractor: formData.contractor || "",
       dynamic_fields: selectedPackage.dynamic_fields || [],
       addon_investigation: selectedPackage.addon_investigation || [],
       payment_mode: formData.payment_type === "Credit" ? "Credit" : formData.cash_mode,
@@ -1051,6 +1054,7 @@ const EmployeeRegistration = () => {
           department: "",
           email: "",
           mobile: "",
+          contractor: "",
           registration_datetime: new Date(
             new Date().getTime() - new Date().getTimezoneOffset() * 60000
           )
@@ -1157,6 +1161,7 @@ const EmployeeRegistration = () => {
                     <span className="name">{emp.employee_name} ({emp.employee_id})</span>
                     <div className="details">
                       {emp.company_name} | {emp.department} | {emp.gender}, {emp.age}yrs
+                      {emp.contractor ? ` | Contractor: ${emp.contractor}` : ""}
                     </div>
                   </SearchResultItem>
                 ))}
@@ -1404,6 +1409,16 @@ const EmployeeRegistration = () => {
                 onChange={handleChange}
               />
             </FormGroup>
+
+            <FormGroup>
+              <label>Contractor</label>
+              <StyledInput
+                name="contractor"
+                value={formData.contractor}
+                onChange={handleChange}
+              />
+            </FormGroup>
+
 <FormGroup>
   <label>Company Name</label>
   {companies.length > 1 && (

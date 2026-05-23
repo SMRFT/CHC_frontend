@@ -98,6 +98,24 @@ const IconButton = styled.button`
   &:hover { opacity: 0.9; }
 `;
 
+const FilterBtn = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  background: linear-gradient(135deg, #3F72AF 0%, #112D4E 100%);
+  color: white;
+  transition: all 0.2s;
+  &:hover { opacity: 0.9; transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
+`;
+
 const TableContainer = styled.div`
   border: 1px solid #dbe2ef;
   border-radius: 12px;
@@ -245,9 +263,28 @@ export default function RegisteredEmployees() {
     } catch (err) { console.error("Fetch Error:", err); }
   };
 
+  const handleFilterSubmit = () => {
+    fetchEmployees();
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = async () => {
+    setSearchInput("");
+    setStartDate(null);
+    setEndDate(null);
+    setSelectedCompany("");
+    try {
+      const res = await axios.get(`${Labbaseurl}get_all_registered_employees/`);
+      setEmployees(res.data || []);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Clear Filters Error:", err);
+    }
+  };
+
   useEffect(() => {
     fetchEmployees();
-  }, [Labbaseurl, selectedCompany, startDate, endDate]);
+  }, [Labbaseurl]);
 
   useEffect(() => {
     const delay = setTimeout(() => {
@@ -316,7 +353,7 @@ export default function RegisteredEmployees() {
               <Download size={18} /> Export Excel
             </IconButton>
             {(searchTerm || startDate || endDate || selectedCompany) && (
-              <IconButton onClick={() => { setSearchInput(""); setStartDate(null); setEndDate(null); setSelectedCompany(""); }} style={{ background: '#F56565', color: '#fff' }}>
+              <IconButton onClick={handleClearFilters} style={{ background: '#F56565', color: '#fff' }}>
                 <FilterX size={18} /> Clear Filters
               </IconButton>
             )}
@@ -330,17 +367,17 @@ export default function RegisteredEmployees() {
           </InputGroup>
           <InputGroup>
             <Calendar size={18} color="#999" />
-            <DatePicker selected={startDate} onChange={d => { setStartDate(d); setCurrentPage(1); }} placeholderText="From Date" dateFormat="dd/MM/yyyy" />
+            <DatePicker selected={startDate} onChange={d => { setStartDate(d); }} placeholderText="From Date" dateFormat="dd/MM/yyyy" />
           </InputGroup>
           <InputGroup>
             <Calendar size={18} color="#999" />
-            <DatePicker selected={endDate} onChange={d => { setEndDate(d); setCurrentPage(1); }} placeholderText="To Date" dateFormat="dd/MM/yyyy" />
+            <DatePicker selected={endDate} onChange={d => { setEndDate(d); }} placeholderText="To Date" dateFormat="dd/MM/yyyy" />
           </InputGroup>
           <InputGroup>
             <FilterX size={18} color="#999" />
             <select 
               value={selectedCompany} 
-              onChange={e => { setSelectedCompany(e.target.value); setCurrentPage(1); }}
+              onChange={e => { setSelectedCompany(e.target.value); }}
               style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', color: '#3F72AF' }}
             >
               <option value="">All Companies</option>
@@ -349,6 +386,9 @@ export default function RegisteredEmployees() {
               ))}
             </select>
           </InputGroup>
+          <FilterBtn onClick={handleFilterSubmit}>
+            Filter
+          </FilterBtn>
         </FiltersGrid>
 
         <TableContainer>

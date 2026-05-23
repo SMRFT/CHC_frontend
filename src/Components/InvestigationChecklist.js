@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { FaSave, FaSearch, FaFileDownload, FaUsers, FaCheckDouble, FaVial, FaTimes } from "react-icons/fa";
+import { FaSave, FaSearch, FaFileDownload, FaUsers, FaCheckDouble, FaVial, FaTimes, FaBuilding } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from 'xlsx';
@@ -64,13 +64,34 @@ const DateGroup = styled.div`
   input { border: none; background: transparent; font-size: 0.85rem; color: #1e293b; outline: none; cursor: pointer; font-weight: 600; }
 `;
 
+const DropdownGroup = styled.div`
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 0.75rem;
+  
+  label { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+  select { 
+    border: none; 
+    background: transparent; 
+    font-size: 0.85rem; 
+    color: #1e293b; 
+    outline: none; 
+    cursor: pointer; 
+    font-weight: 600;
+  }
+`;
+
 const SearchBox = styled.div`
   position: relative;
   flex: 1;
   min-width: 300px;
 
   input {
-    width: 100%;
+    width: 95%;
     padding: 0.6rem 1rem 0.6rem 2.5rem;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -311,17 +332,36 @@ const InvestigationChecklist = () => {
   const [fromDate, setFromDate] = useState(getTodayStr());
   const [toDate, setToDate] = useState(getTodayStr());
   const [selectedTestFilter, setSelectedTestFilter] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
 
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
 
+  // Fetch Companies
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await fetch(`${Labbaseurl}companies/`);
+        const data = await res.json();
+        setCompanies(data || []);
+      } catch (err) {
+        console.error("Failed to fetch companies", err);
+      }
+    };
+    if (Labbaseurl) {
+      fetchCompanies();
+    }
+  }, [Labbaseurl]);
+
   useEffect(() => {
     fetchChecklists();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, selectedCompany]);
 
   const fetchChecklists = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${Labbaseurl}get_investigation_checklists/?from_date=${fromDate}&to_date=${toDate}`);
+      const companyParam = selectedCompany ? `&company_id=${selectedCompany}` : "";
+      const res = await fetch(`${Labbaseurl}get_investigation_checklists/?from_date=${fromDate}&to_date=${toDate}${companyParam}`);
       const data = await res.json();
       if (data.status === "success") {
         setChecklists(data.data);
@@ -343,42 +383,41 @@ const InvestigationChecklist = () => {
     }
   };
 
-  const handleStatusChange = (empId, testName) => {
+  const handleStatusChange = async (empId, testName) => {
+    const targetPatient = checklists.find(cl => cl.employee_id === empId);
+    if (!targetPatient) return;
+
+    const newChecklist = targetPatient.checklist.map(item => {
+      if (item.test_name === testName) {
+        const isCompleted = !item.is_completed;
+        return {
+          ...item,
+          is_completed: isCompleted,
+          approved_at: isCompleted ? new Date().toISOString() : null
+        };
+      }
+      return item;
+    });
+
     setChecklists(prev => prev.map(cl => {
       if (cl.employee_id === empId) {
-        const updatedChecklist = cl.checklist.map(item => {
-          if (item.test_name === testName) {
-            const isCompleted = !item.is_completed;
-            return {
-              ...item,
-              is_completed: isCompleted,
-              approved_at: isCompleted ? new Date().toISOString() : null
-            };
-          }
-          return item;
-        });
-        return { ...cl, checklist: updatedChecklist };
+        return { ...cl, checklist: newChecklist };
       }
       return cl;
     }));
-  };
-
-  const savePatientChecklist = async (empId) => {
-    const patientData = checklists.find(cl => cl.employee_id === empId);
-    if (!patientData) return;
 
     try {
       const res = await fetch(`${Labbaseurl}update_investigation_checklist/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          employee_id: patientData.employee_id,
-          checklist: patientData.checklist
+          employee_id: empId,
+          checklist: newChecklist
         })
       });
       const data = await res.json();
       if (data.status === "success") {
-        toast.success(`Progress saved for ${patientData.employee_name}`);
+        toast.success(`Status updated for ${targetPatient.employee_name}`);
         fetchChecklists();
       } else {
         toast.error(data.message);
@@ -399,6 +438,7 @@ const InvestigationChecklist = () => {
         "S.No": index + 1,
         "Employee ID": patient.employee_id,
         "Name": patient.employee_name,
+        "Company": patient.company_name || "-",
       };
       
       allTests.forEach(testName => {
@@ -448,6 +488,18 @@ const InvestigationChecklist = () => {
         <HeaderTop>
           <Title><FaVial /> Investigation Dashboard</Title>
           <Controls>
+            <DropdownGroup>
+              <label><FaBuilding style={{ marginRight: '4px' }} /> Company</label>
+              <select 
+                value={selectedCompany} 
+                onChange={(e) => setSelectedCompany(e.target.value)}
+              >
+                <option value="">All Companies</option>
+                {companies.map(c => (
+                  <option key={c.company_id} value={c.company_id}>{c.company_name}</option>
+                ))}
+              </select>
+            </DropdownGroup>
             <DateGroup>
               <label>From</label>
               <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -546,13 +598,12 @@ const InvestigationChecklist = () => {
                     {testName}
                   </th>
                 ))}
-                <th style={{ width: '100px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredPatients.length === 0 ? (
                 <tr>
-                  <td colSpan={allTests.length + 4} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                  <td colSpan={allTests.length + 3} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                     {selectedTestFilter ? `No patients found with pending ${selectedTestFilter}` : 'No patient records found'}
                   </td>
                 </tr>
@@ -561,7 +612,12 @@ const InvestigationChecklist = () => {
                   <tr key={patient.employee_id}>
                     <td>{index + 1}</td>
                     <td style={{ fontWeight: 700, color: '#1e293b' }}>{patient.employee_id}</td>
-                    <td style={{ fontWeight: 600 }}>{patient.employee_name}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {patient.employee_name}
+                      <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b', marginTop: '2px' }}>
+                        {patient.company_name || "-"}
+                      </div>
+                    </td>
                     {allTests.map(testName => {
                       const testItem = patient.checklist.find(item => item.test_name === testName);
                       const isFiltered = selectedTestFilter === testName;
@@ -589,11 +645,6 @@ const InvestigationChecklist = () => {
                         </td>
                       );
                     })}
-                    <td>
-                      <SaveButton onClick={() => savePatientChecklist(patient.employee_id)}>
-                        <FaSave /> Save
-                      </SaveButton>
-                    </td>
                   </tr>
                 ))
               )}
