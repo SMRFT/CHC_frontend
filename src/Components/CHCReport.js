@@ -427,6 +427,9 @@ const CHCReport = () => {
   const location = useLocation();
   const Labbaseurl = "https://shinova.in/_b_a_c_k_e_n_d/LIS/";
 
+  const role = localStorage.getItem("role");
+  const companyId = localStorage.getItem("company_id");
+
   // MOVE THIS OUTSIDE of useEffect - use useCallback to memoize it
   const fetchCombinedPatientData = useCallback(async () => {
     setLoading(true);
@@ -435,7 +438,11 @@ const CHCReport = () => {
     try {
       const formattedStartDate = startDate.toISOString().split("T")[0];
       const formattedEndDate = endDate.toISOString().split("T")[0];
-      const url = `${Labbaseurl}corporate_approval_report/?from_date=${formattedStartDate}&to_date=${formattedEndDate}`;
+      let url = `${Labbaseurl}corporate_approval_report/?from_date=${formattedStartDate}&to_date=${formattedEndDate}`;
+
+      if (role === "Company" && companyId) {
+        url += `&company_id=${companyId}`;
+      }
 
       const response = await axios.get(url);
 
@@ -463,7 +470,7 @@ const CHCReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, Labbaseurl]);
+  }, [startDate, endDate, Labbaseurl, role, companyId]);
 
   // Create the callback handler
   const handleApprovalSaved = useCallback(async () => {
