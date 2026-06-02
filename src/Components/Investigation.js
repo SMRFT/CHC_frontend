@@ -80,16 +80,16 @@ const FiltersBar = styled.div`
 const SearchWrap = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   background: #fff;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: 2px solid #e2e8f0;
   input {
-    width: 240px;
+    width: 280px;
     border: none;
     outline: none;
-    font-weight: 600;
+    font-weight: 800;
     color: #2d3748;
   }
 `
@@ -144,13 +144,14 @@ const ClearBtn = styled.button`
 `
 
 const FilterBtn = styled.button`
-  padding: 10px 18px;
+  padding: 12px 24px;
   border-radius: 10px;
   cursor: pointer;
   border: none;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 15px;
   transition: 0.2s;
   &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3); }
   &:active { transform: translateY(0); }
@@ -462,6 +463,41 @@ const TestStatItem = styled.div`
   `}
 `;
 
+const hasVitals = (emp) => {
+  if (!emp || !emp.vitals) return false;
+  let v = emp.vitals;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v);
+    } catch (e) {
+      return false;
+    }
+  }
+  return !!(
+    (v.height_cm && String(v.height_cm).trim() !== "") ||
+    (v.weight_kg && String(v.weight_kg).trim() !== "") ||
+    (v.blood_pressure && String(v.blood_pressure).trim() !== "") ||
+    (v.spo2 && String(v.spo2).trim() !== "") ||
+    (v.bmi && String(v.bmi).trim() !== "")
+  );
+};
+
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 export default function Investigation() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
@@ -486,6 +522,7 @@ export default function Investigation() {
   })
 
   const [employees, setEmployees] = useState([])
+  const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState({}) // Indices mapping to arrays
 
   const [uploading, setUploading] = useState(false)
@@ -504,6 +541,8 @@ export default function Investigation() {
   const [activeNoteIdx, setActiveNoteIdx] = useState(null); // Tracks the index of the test being edited
   const [statusFilter, setStatusFilter] = useState("any")
   const [pendingTestFilter, setPendingTestFilter] = useState("any")
+  const [vitalsFilter, setVitalsFilter] = useState("any")
+  const [companyFilter, setCompanyFilter] = useState("any")
 
   // Bulk Upload State
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -519,21 +558,19 @@ export default function Investigation() {
   const [bulkUploadPackageId, setBulkUploadPackageId] = useState("");
   const [bulkUploadAvailableTests, setBulkUploadAvailableTests] = useState([]);
 
-  // Fetch companies when modal opens
+  // Fetch companies on mount
   useEffect(() => {
-    if (showBulkUpload) {
-      const fetchCompanies = async () => {
-        try {
-          const res = await axios.get(`${Labbaseurl}companies/`);
-          setCompanies(Array.isArray(res.data) ? res.data : []);
-        } catch (err) {
-          console.error("Error fetching companies:", err);
-          showToast("Failed to load companies for bulk upload", "error");
-        }
-      };
-      fetchCompanies();
-    }
-  }, [showBulkUpload, Labbaseurl]);
+    const fetchCompanies = async () => {
+      try {
+        const res = await axios.get(`${Labbaseurl}companies/`);
+        setCompanies(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("Error fetching companies:", err);
+        showToast("Failed to load companies", "error");
+      }
+    };
+    fetchCompanies();
+  }, [Labbaseurl]);
 
   // Fetch packages when company changes
   useEffect(() => {
@@ -634,10 +671,79 @@ export default function Investigation() {
     return Array.from(testNames).sort()
   }, [employees])
 
-  // Get completion stats per test dynamically from all loaded employees
+  // Helper filtered list of employees matching all active filters EXCEPT the pending test filter
+  const filteredEmployeesForStats = useMemo(() => {
+    return employees.filter((emp) => {
+      // Search filter
+      const q = debouncedSearch
+      const matchesSearch =
+        !q ||
+        (emp.barcode && String(emp.barcode).toLowerCase().includes(q)) ||
+        (emp.employee_id && String(emp.employee_id).toLowerCase().includes(q)) ||
+        (emp.employee_name && String(emp.employee_name).toLowerCase().includes(q))
+      if (!matchesSearch) return false
+
+      // Overall status filter (check if ALL tests are complete)
+      const billable = emp.billing_testdetails || []
+      const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+      const testResults = emp.test_results || []
+
+      const pendingList = chcBillable.filter(bt => {
+        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+        return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
+      })
+
+      const overallApproved = pendingList.length === 0
+      const hasNoFiles = chcBillable.every(bt => {
+        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+        return saved ? (saved.files || []).length === 0 : true
+      })
+
+      if (statusFilter === "approved" && !overallApproved) return false
+      if (statusFilter === "pending" && overallApproved) return false
+      if (statusFilter === "no_files" && !hasNoFiles) return false
+
+      // Vitals filter
+      if (vitalsFilter !== "any") {
+        const hasV = hasVitals(emp)
+        if (vitalsFilter === "yes" && !hasV) return false
+        if (vitalsFilter === "no" && hasV) return false
+      }
+
+      // Company filter
+      if (companyFilter !== "any" && companyFilter !== "") {
+        const matchesCompany =
+          (emp.company_id && emp.company_id === companyFilter) ||
+          (emp.company_name && emp.company_name === companyFilter)
+        if (!matchesCompany) return false
+      }
+
+      return true
+    })
+  }, [employees, debouncedSearch, statusFilter, vitalsFilter, companyFilter])
+
+  // Compose filters: search + date range + file filters (AND) + overall status filter + pending test filter
+  const filteredEmployees = useMemo(() => {
+    if (pendingTestFilter === "any") return filteredEmployeesForStats
+
+    return filteredEmployeesForStats.filter((emp) => {
+      const billable = emp.billing_testdetails || []
+      const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
+      const testResults = emp.test_results || []
+
+      const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
+      if (!bt) return false
+      
+      const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
+      const isCompleted = saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false
+      return !isCompleted
+    })
+  }, [filteredEmployeesForStats, pendingTestFilter])
+
+  // Get completion stats per test dynamically from all filtered employees (except pending test filter)
   const testStats = useMemo(() => {
     const stats = {}
-    employees.forEach(emp => {
+    filteredEmployeesForStats.forEach(emp => {
       // Get all tests this employee is registered/billed for
       const billable = emp.billing_testdetails || []
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
@@ -665,7 +771,7 @@ export default function Investigation() {
       })
     })
     return stats
-  }, [employees])
+  }, [filteredEmployeesForStats])
 
   const handlePrintVitals = (emp) => {
     const iframe = document.createElement("iframe");
@@ -788,6 +894,7 @@ export default function Investigation() {
 
   // Reusable fetch + merge (Backend filtering)
   const refreshData = async (fDate, tDate) => {
+    setLoading(true)
     let empUrl = `${Labbaseurl}get_all_employees/`
     let invUrl = `${Labbaseurl}get_investigations/`
 
@@ -802,19 +909,25 @@ export default function Investigation() {
       }
     }
 
-    const empRes = await axios.get(empUrl)
-    const employeesData = empRes.data || []
-    const invRes = await axios.get(invUrl)
-    const investigationsData = invRes.data || []
+    try {
+      const empRes = await axios.get(empUrl)
+      const employeesData = empRes.data || []
+      const invRes = await axios.get(invUrl)
+      const investigationsData = invRes.data || []
 
-    const merged = employeesData.map((emp) => {
-      // Improved matching: use barcode if available, else fallback to employee_id
-      const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
-      return inv ? { ...emp, ...inv } : emp
-    })
+      const merged = employeesData.map((emp) => {
+        // Improved matching: use barcode if available, else fallback to employee_id
+        const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
+        return inv ? { ...emp, ...inv } : emp
+      })
 
-    setEmployees(merged)
-    return merged
+      setEmployees(merged)
+      setLoading(false)
+      return merged
+    } catch (err) {
+      setLoading(false)
+      throw err
+    }
   }
 
   const handleFilterSubmit = async () => {
@@ -858,53 +971,7 @@ export default function Investigation() {
 
   const hasValue = (x) => x !== null && x !== undefined && String(x).trim() !== ""
 
-  // Compose filters: search + date range + file filters (AND) + overall status filter
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
-      // Search filter
-      const q = debouncedSearch
-      const matchesSearch =
-        !q ||
-        (emp.barcode && String(emp.barcode).toLowerCase().includes(q)) ||
-        (emp.employee_id && String(emp.employee_id).toLowerCase().includes(q)) ||
-        (emp.employee_name && String(emp.employee_name).toLowerCase().includes(q))
-      if (!matchesSearch) return false
 
-      // Overall status filter (check if ALL tests are complete)
-      const billable = emp.billing_testdetails || []
-      const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
-      const testResults = emp.test_results || []
-
-      const pendingList = chcBillable.filter(bt => {
-        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-        return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
-      })
-
-      const overallApproved = pendingList.length === 0
-      const hasNoFiles = chcBillable.every(bt => {
-        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-        return saved ? (saved.files || []).length === 0 : true
-      })
-
-      if (statusFilter === "approved" && !overallApproved) return false
-      if (statusFilter === "pending" && overallApproved) return false
-      if (statusFilter === "no_files" && !hasNoFiles) return false
-
-      // Pending test filter (didn't have file/result for a specific CHC Test)
-      if (pendingTestFilter !== "any") {
-        const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
-        if (!bt) return false
-        
-        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-        const isCompleted = saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false
-        if (isCompleted) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [employees, debouncedSearch, statusFilter, pendingTestFilter])
 
   const handleSelectEmployee = (empIdentifier) => {
     // Lookup by either employee_id or barcode
@@ -1182,6 +1249,7 @@ export default function Investigation() {
     return {
       employee_id: emp.employee_id ?? "",
       employee_name: emp.employee_name ?? "",
+      company_name: emp.company_name ?? "",
       age: emp.age ?? "",
       gender: emp.gender ?? "",
       barcode: emp.barcode ?? "",
@@ -1196,6 +1264,7 @@ export default function Investigation() {
     const headers = [
       "employee_id",
       "employee_name",
+      "company_name",
       "age",
       "gender",
       "barcode",
@@ -1225,6 +1294,7 @@ export default function Investigation() {
     const headers = [
       "employee_id",
       "employee_name",
+      "company_name",
       "age",
       "gender",
       "barcode",
@@ -1377,6 +1447,27 @@ export default function Investigation() {
               </Select>
             </SelectWrap>
 
+            {/* Vitals filter */}
+            <SelectWrap>
+              <span style={{ fontWeight: 700, color: "#4a5568" }}>Vitals</span>
+              <Select value={vitalsFilter} onChange={(e) => setVitalsFilter(e.target.value)}>
+                <option value="any">Any</option>
+                <option value="yes">With Vitals</option>
+                <option value="no">Without Vitals</option>
+              </Select>
+            </SelectWrap>
+
+            {/* Company filter */}
+            <SelectWrap>
+              <span style={{ fontWeight: 700, color: "#4a5568" }}>Company</span>
+              <Select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
+                <option value="any">Any</option>
+                {companies.map(comp => (
+                  <option key={comp.company_id} value={comp.company_id}>{comp.company_name}</option>
+                ))}
+              </Select>
+            </SelectWrap>
+
             <FilterBtn onClick={handleFilterSubmit}>
               Filter
             </FilterBtn>
@@ -1385,6 +1476,8 @@ export default function Investigation() {
               startDate ||
               endDate ||
               statusFilter !== "any" ||
+              vitalsFilter !== "any" ||
+              companyFilter !== "any" ||
               pendingTestFilter !== "any") && (
                 <ClearBtn
                   onClick={async () => {
@@ -1394,6 +1487,8 @@ export default function Investigation() {
                     setStartDate(today)
                     setEndDate(today)
                     setStatusFilter("any")
+                    setVitalsFilter("any")
+                    setCompanyFilter("any")
                     setPendingTestFilter("any")
                     try {
                       await refreshData(today, today)
@@ -1540,24 +1635,35 @@ export default function Investigation() {
             </TestStatsWrapper>
           )}
 
-          {filteredEmployees.length === 0 ? (
-            <p>No employees found.</p>
-          ) : (
-            <Table>
-              <thead>
+          <Table>
+            <thead>
+              <tr>
+                <TableHeader style={{ width: "50px" }}>S.No</TableHeader>
+                <TableHeader>Employee ID</TableHeader>
+                <TableHeader>Employee Name</TableHeader>
+                <TableHeader>Company</TableHeader>
+                <TableHeader>Age</TableHeader>
+                <TableHeader>Gender</TableHeader>
+                <TableHeader>Barcode</TableHeader>
+                <TableHeader>Pending CHC Tests</TableHeader>
+                <TableHeader>Action</TableHeader>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
                 <tr>
-                  <TableHeader style={{ width: "50px" }}>S.No</TableHeader>
-                  <TableHeader>Employee ID</TableHeader>
-                  <TableHeader>Employee Name</TableHeader>
-                  <TableHeader>Age</TableHeader>
-                  <TableHeader>Gender</TableHeader>
-                  <TableHeader>Barcode</TableHeader>
-                  <TableHeader>Pending CHC Tests</TableHeader>
-                  <TableHeader>Action</TableHeader>
+                  <TableCell colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#666', fontWeight: 600 }}>
+                    <SimpleSpinner /> Loading records...
+                  </TableCell>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredEmployees.map((emp, index) => {
+              ) : filteredEmployees.length === 0 ? (
+                <tr>
+                  <TableCell colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                    No employees found.
+                  </TableCell>
+                </tr>
+              ) : (
+                filteredEmployees.map((emp, index) => {
                   const billable = emp.billing_testdetails || []
                   const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
                   const results = emp.test_results || []
@@ -1567,10 +1673,11 @@ export default function Investigation() {
                   })
 
                   return (
-                    <TableRow key={emp.barcode || emp.employee_id} style={{ background: emp.vitals ? "#e6ffe6" : "inherit" }}>
+                    <TableRow key={emp.barcode || emp.employee_id} style={{ background: hasVitals(emp) ? "#e6ffe6" : "inherit" }}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{emp.employee_id || "N/A"}</TableCell>
                       <TableCell>{emp.employee_name}</TableCell>
+                      <TableCell>{emp.company_name || "-"}</TableCell>
                       <TableCell>{emp.age}</TableCell>
                       <TableCell>{emp.gender}</TableCell>
                       <TableCell>{emp.barcode}</TableCell>
@@ -1601,10 +1708,10 @@ export default function Investigation() {
                       </TableCell>
                     </TableRow>
                   )
-                })}
-              </tbody>
-            </Table>
-          )}
+                })
+              )}
+            </tbody>
+          </Table>
         </>
       ) : (
         <FormContainer>

@@ -426,6 +426,21 @@ const Scanner = ({ onDetected, scanning }) => {
 };
 
 // ---- Main Component ----
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const EmployeeRegistration = () => {
   const [formData, setFormData] = useState({
     registration_mode: "Offsite", // Default to "Offsite"
@@ -462,6 +477,8 @@ const EmployeeRegistration = () => {
   const [companySearch, setCompanySearch] = useState("");
   const [packageSearch, setPackageSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingPackages, setLoadingPackages] = useState(false);
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
   const [companies, setCompanies] = useState([]);
   const [testContainers, setTestContainers] = useState([]);
@@ -643,6 +660,7 @@ const EmployeeRegistration = () => {
 // Fetch Companies
   useEffect(() => {
     const fetchCompanies = async () => {
+      setLoadingCompanies(true);
       try {
         const res = await fetch(`${Labbaseurl}companies/`);
         const data = await res.json();
@@ -662,6 +680,8 @@ const EmployeeRegistration = () => {
       } catch (err) {
         console.error("Error fetching companies:", err);
         toast.error("Failed to load companies");
+      } finally {
+        setLoadingCompanies(false);
       }
     };
     fetchCompanies();
@@ -882,6 +902,7 @@ const EmployeeRegistration = () => {
       setPackages([]);
       return;
     }
+    setLoadingPackages(true);
     try {
       const res = await fetch(`${Labbaseurl}get_packages/?company_id=${companyId}`);
       const data = await res.json();
@@ -907,6 +928,8 @@ const EmployeeRegistration = () => {
     } catch (err) {
       console.error("Error fetching packages:", err);
       toast.error("Error fetching packages");
+    } finally {
+      setLoadingPackages(false);
     }
   };
 
@@ -1154,7 +1177,15 @@ const EmployeeRegistration = () => {
               onChange={(e) => setUnregisteredSearch(e.target.value)}
               style={{ background: '#f8fafc' }}
             />
-            {unregisteredResults.length > 0 && (
+            {isSearching && (
+              <SearchResultsDropdown>
+                <SearchResultItem style={{ textAlign: "center", color: "#6b7280" }}>
+                  <SimpleSpinner style={{ width: "14px", height: "14px", borderWidth: "2px", marginRight: "8px" }} />
+                  Searching...
+                </SearchResultItem>
+              </SearchResultsDropdown>
+            )}
+            {!isSearching && unregisteredResults.length > 0 && (
               <SearchResultsDropdown>
                 {unregisteredResults.map((emp) => (
                   <SearchResultItem key={emp.employee_id} onClick={() => handleSelectUnregistered(emp)}>
@@ -1435,23 +1466,29 @@ const EmployeeRegistration = () => {
     name="company_name"
     value={formData.company_id}
     onChange={handleCompanyChange}
-    disabled={companies.length === 1} // Disable if only one option exists
+    disabled={companies.length === 1 || loadingCompanies} // Disable if only one option exists or loading
     style={{ 
-      background: companies.length === 1 ? "#f3f4f6" : "white",
-      cursor: companies.length === 1 ? "not-allowed" : "pointer" 
+      background: (companies.length === 1 || loadingCompanies) ? "#f3f4f6" : "white",
+      cursor: (companies.length === 1 || loadingCompanies) ? "not-allowed" : "pointer" 
     }}
   >
-    {companies.length !== 1 && <option value="">Select Company</option>}
-    {companies
-      .filter(c => 
-        c.company_name.toLowerCase().includes(companySearch.toLowerCase()) || 
-        c.company_id.toLowerCase().includes(companySearch.toLowerCase())
-      )
-      .map((company) => (
-        <option key={company.company_id} value={company.company_id}>
-          {company.company_name}
-        </option>
-      ))}
+    {loadingCompanies ? (
+      <option value="">Loading companies...</option>
+    ) : (
+      <>
+        {companies.length !== 1 && <option value="">Select Company</option>}
+        {companies
+          .filter(c => 
+            c.company_name.toLowerCase().includes(companySearch.toLowerCase()) || 
+            c.company_id.toLowerCase().includes(companySearch.toLowerCase())
+          )
+          .map((company) => (
+            <option key={company.company_id} value={company.company_id}>
+              {company.company_name}
+            </option>
+          ))}
+      </>
+    )}
   </StyledSelect>
   {companies.length === 1 && (
     <small style={{ color: "#059669", marginTop: "4px", fontWeight: "600" }}>
@@ -1479,31 +1516,37 @@ const EmployeeRegistration = () => {
     onChange={(e) =>
       setFormData(prev => ({ ...prev, package_id: e.target.value }))
     }
-    disabled={packages.length <= 1} // Disable if empty OR only one choice
+    disabled={packages.length <= 1 || loadingPackages} // Disable if empty OR only one choice OR loading
     style={{ 
-      background: packages.length === 1 ? "#f3f4f6" : "white",
-      cursor: packages.length === 1 ? "not-allowed" : "pointer"
+      background: (packages.length === 1 || loadingPackages) ? "#f3f4f6" : "white",
+      cursor: (packages.length === 1 || loadingPackages) ? "not-allowed" : "pointer"
     }}
   >
-    {/* Show placeholder only if there are multiple or zero options */}
-    {packages.length !== 1 && (
-      <option value="">
-        {formData.company_id ? "Select Package" : "Select Company First"}
-      </option>
-    )}
+    {loadingPackages ? (
+      <option value="">Loading packages...</option>
+    ) : (
+      <>
+        {/* Show placeholder only if there are multiple or zero options */}
+        {packages.length !== 1 && (
+          <option value="">
+            {formData.company_id ? "Select Package" : "Select Company First"}
+          </option>
+        )}
 
-    {packages
-      .filter((p) => {
-        const matchesSearch = p.package_name.toLowerCase().includes(packageSearch.toLowerCase());
-        const pkgGender = p.gender || "Common";
-        const matchesGender = pkgGender === "Common" || pkgGender === formData.gender;
-        return matchesSearch && matchesGender;
-      })
-      .map((pkg) => (
-        <option key={pkg._id} value={pkg._id}>
-          {pkg.package_name}
-        </option>
-      ))}
+        {packages
+          .filter((p) => {
+            const matchesSearch = p.package_name.toLowerCase().includes(packageSearch.toLowerCase());
+            const pkgGender = p.gender || "Common";
+            const matchesGender = pkgGender === "Common" || pkgGender === formData.gender;
+            return matchesSearch && matchesGender;
+          })
+          .map((pkg) => (
+            <option key={pkg._id} value={pkg._id}>
+              {pkg.package_name}
+            </option>
+          ))}
+      </>
+    )}
   </StyledSelect>
   
   {packages.length === 1 && (
@@ -1642,7 +1685,16 @@ const EmployeeRegistration = () => {
           <BackButton type="button" onClick={() => window.history.back()}>
             Back
           </BackButton>
-          <SubmitButton type="submit">Submit</SubmitButton>
+          <SubmitButton type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <SimpleSpinner style={{ width: '12px', height: '12px', borderWidth: '2px', marginRight: '8px', borderTopColor: '#fff', display: 'inline-block' }} />
+                Submitting...
+              </>
+            ) : (
+              "Submit"
+            )}
+          </SubmitButton>
 
 
         </ButtonGroup>
