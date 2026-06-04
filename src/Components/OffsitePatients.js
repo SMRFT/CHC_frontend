@@ -327,9 +327,28 @@ const BarcodeDisplay = ({ value, label, patient }) => {
     );
 };
 
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 export default function OffsitePatients() {
     const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
     const [billings, setBillings] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [loadingPatientId, setLoadingPatientId] = useState(null);
+    const [generatingBarcodes, setGeneratingBarcodes] = useState(false);
     const [searchInput, setSearchInput] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [startDate, setStartDate] = useState(new Date());
@@ -348,6 +367,7 @@ export default function OffsitePatients() {
     const [currentPatient, setCurrentPatient] = useState(null);
 
     const fetchBillings = useCallback(async () => {
+        setLoading(true);
         try {
             const payload = {
                 from_date: startDate ? startDate.toISOString().split('T')[0] : null,
@@ -361,6 +381,8 @@ export default function OffsitePatients() {
         } catch (err) {
             console.error("Fetch Error:", err);
             // toast.error("Failed to load offsite patients"); // Optional: minimize noise if needed
+        } finally {
+            setLoading(false);
         }
     }, [startDate, endDate, searchTerm, Labbaseurl]);
 
@@ -393,6 +415,7 @@ export default function OffsitePatients() {
     const currentData = filteredBillings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const handleOpenModal = async (patient) => {
+        setLoadingPatientId(patient.barcode || patient.employee_id);
         setCurrentPatient(patient);
         setShowModal(true);
         setLoadingTests(true);
@@ -435,6 +458,7 @@ export default function OffsitePatients() {
             toast.error("Failed to fetch test details");
         } finally {
             setLoadingTests(false);
+            setLoadingPatientId(null);
         }
     };
 
@@ -660,36 +684,40 @@ export default function OffsitePatients() {
     const handleGenerateBarcodes = () => {
         if (!currentPatient || !selectedTests.length) return;
 
-        // Group by both container and suffix to ensure we get unique barcodes for each combination
-        const containerSuffixPairs = selectedTests.reduce((acc, t) => {
-            const container = (t.collection_container || "").trim();
-            if (container === "" || container.toLowerCase() === "n/a") return acc;
-            
-            const suffix = (t.suffix || "").trim();
-            const key = `${container}|${suffix}`;
-            
-            if (!acc[key]) {
-                acc[key] = { container, suffix };
+        setGeneratingBarcodes(true);
+        setTimeout(() => {
+            // Group by both container and suffix to ensure we get unique barcodes for each combination
+            const containerSuffixPairs = selectedTests.reduce((acc, t) => {
+                const container = (t.collection_container || "").trim();
+                if (container === "" || container.toLowerCase() === "n/a") return acc;
+                
+                const suffix = (t.suffix || "").trim();
+                const key = `${container}|${suffix}`;
+                
+                if (!acc[key]) {
+                    acc[key] = { container, suffix };
+                }
+                return acc;
+            }, {});
+
+            // Generate barcodes for unique container-suffix pairs
+            const generated = Object.values(containerSuffixPairs).map((pair) => ({
+                label: pair.container,
+                barcodeValue: pair.suffix ? `${currentPatient.barcode}-${pair.suffix}` : currentPatient.barcode
+            }));
+
+            // Add extra general barcode labels
+            const extraCount = currentPatient.extra_barcode != null ? parseInt(currentPatient.extra_barcode, 10) : 3;
+            for (let i = 0; i < extraCount; i++) {
+                generated.push({
+                    label: "",
+                    barcodeValue: currentPatient.barcode
+                });
             }
-            return acc;
-        }, {});
-
-        // Generate barcodes for unique container-suffix pairs
-        const generated = Object.values(containerSuffixPairs).map((pair) => ({
-            label: pair.container,
-            barcodeValue: pair.suffix ? `${currentPatient.barcode}-${pair.suffix}` : currentPatient.barcode
-        }));
-
-        // Add extra general barcode labels
-        const extraCount = currentPatient.extra_barcode != null ? parseInt(currentPatient.extra_barcode, 10) : 3;
-        for (let i = 0; i < extraCount; i++) {
-            generated.push({
-                label: "",
-                barcodeValue: currentPatient.barcode
-            });
-        }
-        setContainerBarcodes(generated);
-        setShowBarcodes(true);
+            setContainerBarcodes(generated);
+            setShowBarcodes(true);
+            setGeneratingBarcodes(false);
+        }, 300);
     };
 
     const handleCloseModal = () => {
@@ -866,7 +894,13 @@ export default function OffsitePatients() {
                             </tr>
                         </thead>
                         <tbody>
-                            {currentData.length > 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <Td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#666', fontWeight: 600 }}>
+                                        <SimpleSpinner /> Loading records...
+                                    </Td>
+                                </tr>
+                            ) : currentData.length > 0 ? (
                                 currentData.map((b, i) => (
                                     <tr key={b.billing_id || i}>
                                         <Td>{b.employee_id}</Td>
@@ -879,8 +913,16 @@ export default function OffsitePatients() {
                                         <Td>{b.date ? new Date(b.date).toLocaleDateString() : "-"}</Td>
                                         <Td>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                <ViewBtn onClick={() => handleOpenModal(b)}>
-                                                    <Eye size={14} /> View Tests
+                                                <ViewBtn 
+                                                    onClick={() => handleOpenModal(b)}
+                                                    disabled={loadingPatientId === (b.barcode || b.employee_id)}
+                                                >
+                                                    {loadingPatientId === (b.barcode || b.employee_id) ? (
+                                                        <SimpleSpinner style={{ width: '12px', height: '12px', borderWidth: '2px', marginRight: '4px', borderTopColor: '#fff' }} />
+                                                    ) : (
+                                                        <Eye size={14} />
+                                                    )}
+                                                    {loadingPatientId === (b.barcode || b.employee_id) ? "Loading..." : "View Tests"}
                                                 </ViewBtn>
                                                 <ViewBtn onClick={() => handlePrintBill(b)} style={{ background: '#2D3748' }}>
                                                     <Printer size={14} /> Print Bill
@@ -921,16 +963,27 @@ export default function OffsitePatients() {
                                         <>
                                             <IconButton
                                                 onClick={handleGenerateBarcodes}
+                                                disabled={generatingBarcodes}
                                                 style={{ background: '#3F72AF', color: '#fff', fontSize: '12px', padding: '6px 10px' }}
                                             >
-                                                <BarcodeIcon size={14} /> View Barcodes
+                                                {generatingBarcodes ? (
+                                                    <SimpleSpinner style={{ width: '12px', height: '12px', borderWidth: '2px', marginRight: '4px', borderTopColor: '#fff' }} />
+                                                ) : (
+                                                    <BarcodeIcon size={14} />
+                                                )}
+                                                {generatingBarcodes ? "Generating..." : "View Barcodes"}
                                             </IconButton>
                                             <IconButton
                                                 onClick={handleReGenerateAndPrint}
                                                 disabled={isPrinting}
                                                 style={{ background: '#38a169', color: '#fff', fontSize: '12px', padding: '6px 10px' }}
                                             >
-                                                <Printer size={14} /> {isPrinting ? "Printing..." : "Generate & Print"}
+                                                {isPrinting ? (
+                                                    <SimpleSpinner style={{ width: '12px', height: '12px', borderWidth: '2px', marginRight: '4px', borderTopColor: '#fff' }} />
+                                                ) : (
+                                                    <Printer size={14} />
+                                                )}
+                                                {isPrinting ? "Printing..." : "Generate & Print"}
                                             </IconButton>
                                         </>
                                     )}
@@ -965,7 +1018,11 @@ export default function OffsitePatients() {
                                         disabled={isPrinting}
                                         style={{ background: '#38a169', color: '#fff' }}
                                     >
-                                        <Printer size={18} style={{ marginRight: '8px' }} />
+                                        {isPrinting ? (
+                                            <SimpleSpinner style={{ width: '18px', height: '18px', borderWidth: '2px', marginRight: '8px', borderTopColor: '#fff' }} />
+                                        ) : (
+                                            <Printer size={18} style={{ marginRight: '8px' }} />
+                                        )}
                                         {isPrinting ? "Preparing..." : "Print All Barcodes"}
                                     </IconButton>
                                 </div>

@@ -446,6 +446,48 @@ const Notification = styled.div`
   @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 `;
 
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  color: white;
+`;
+
+const LoadingBox = styled.div`
+  background: #ffffff;
+  color: #1e293b;
+  padding: 16px 28px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+`;
+
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 // --- Main Component ---
 
 export default function DoctorApprovalInvestigations() {
@@ -462,6 +504,8 @@ export default function DoctorApprovalInvestigations() {
   const [showModal, setShowModal] = useState(false);
   const [selectedInv, setSelectedInv] = useState(null);
   const [previewFile, setPreviewFile] = useState(null); // { url, type: 'image' | 'pdf' }
+  const [fileLoading, setFileLoading] = useState(false);
+  const [loadingResultsId, setLoadingResultsId] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -507,6 +551,7 @@ export default function DoctorApprovalInvestigations() {
 
   const handleFileClick = async (url) => {
     console.log("File clicked, detecting type for:", url);
+    setFileLoading(true);
     try {
       const res = await axios.get(url, { responseType: 'blob' });
       const blob = res.data;
@@ -522,6 +567,8 @@ export default function DoctorApprovalInvestigations() {
       console.error("Error detecting file type:", err);
       // Fallback to direct URL if blob fetch fails
       setPreviewFile({ url, type: 'image' });
+    } finally {
+      setFileLoading(false);
     }
   };
 
@@ -599,8 +646,12 @@ export default function DoctorApprovalInvestigations() {
 
 
   const handleOpenModal = (inv) => {
-    setSelectedInv(inv);
-    setShowModal(true);
+    setLoadingResultsId(inv.barcode);
+    setTimeout(() => {
+      setSelectedInv(inv);
+      setShowModal(true);
+      setLoadingResultsId(null);
+    }, 400);
   };
 
   return (
@@ -637,18 +688,24 @@ export default function DoctorApprovalInvestigations() {
 
         <Content>
           <TableContainer>
-            {loading ? <div style={{ padding: 20 }}>Loading...</div> : (
-              <Table>
-                <thead>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Date</Th><Th>Employee</Th><Th>ID</Th><Th>Gender</Th>
+                  <Th>Age</Th><Th>Barcode</Th><Th>Vitals</Th>
+                  <Th>Test Details</Th>
+                  <Th>Status</Th><Th>Action</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
                   <tr>
-                    <Th>Date</Th><Th>Employee</Th><Th>ID</Th><Th>Gender</Th>
-                    <Th>Age</Th><Th>Barcode</Th><Th>Vitals</Th>
-                    <Th>Test Details</Th>
-                    <Th>Status</Th><Th>Action</Th>
+                    <Td colSpan="10" style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>
+                      <SimpleSpinner /> Loading records...
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map(inv => (
+                ) : (
+                  filteredData.map(inv => (
                     <MobileRow key={inv.barcode}>
                       <Td data-label="Date">{inv.date ? new Date(inv.date).toLocaleDateString() : "-"}</Td>
                       <Td data-label="Employee" style={{ fontWeight: 700 }}>{inv.employee_name}</Td>
@@ -658,8 +715,13 @@ export default function DoctorApprovalInvestigations() {
                       <Td data-label="Barcode">{inv.barcode}</Td>
                       <Td data-label="Vitals">{renderVitals(inv.vitals)}</Td>
                       <Td data-label="Test Details">
-                        <ViewBtn onClick={() => handleOpenModal(inv)}>
-                          <Eye size={14} /> View Results
+                        <ViewBtn disabled={loadingResultsId === inv.barcode} onClick={() => handleOpenModal(inv)}>
+                          {loadingResultsId === inv.barcode ? (
+                            <SimpleSpinner style={{ width: '12px', height: '12px', borderWidth: '2px', marginRight: '4px' }} />
+                          ) : (
+                            <Eye size={14} />
+                          )}
+                          {loadingResultsId === inv.barcode ? "Loading..." : "View Results"}
                         </ViewBtn>
                       </Td>
                       <Td data-label="Status">
@@ -674,10 +736,10 @@ export default function DoctorApprovalInvestigations() {
                         </ApproveBtn>
                       </Td>
                     </MobileRow>
-                  ))}
-                </tbody>
-              </Table>
-            )}
+                  ))
+                )}
+              </tbody>
+            </Table>
           </TableContainer>
         </Content>
       </Main>
@@ -807,6 +869,15 @@ export default function DoctorApprovalInvestigations() {
             />
           )}
         </PreviewOverlay>
+      )}
+
+      {fileLoading && (
+        <LoadingOverlay>
+          <LoadingBox>
+            <SimpleSpinner style={{ width: '28px', height: '28px', borderWidth: '3.5px', borderTopColor: '#3F72AF' }} />
+            <span style={{ fontSize: '15px', fontWeight: 700 }}>Loading document...</span>
+          </LoadingBox>
+        </LoadingOverlay>
       )}
     </PageWrapper >
   );

@@ -481,6 +481,22 @@ const ErrorContainer = styled(LoadingContainer)`
   color: #fee2e2;
 `;
 
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 24px;
@@ -646,7 +662,6 @@ export default function DoctorApprovalOphthalmology() {
     return matchesSearch && matchesDate && matchesStatus;
   });
 
-  if (loading) return <Container><LoadingContainer>Loading ophthalmology records...</LoadingContainer></Container>;
   if (error) return <Container><ErrorContainer>{error}</ErrorContainer></Container>;
 
   return (
@@ -760,7 +775,13 @@ export default function DoctorApprovalOphthalmology() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <Td colSpan="11" style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>
+                    <SimpleSpinner /> Loading records...
+                  </Td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <Td colSpan="11">
                     <EmptyState>

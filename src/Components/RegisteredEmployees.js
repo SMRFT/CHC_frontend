@@ -228,9 +228,26 @@ const PageBtn = styled.button`
   }
 `;
 
+const SimpleSpinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3F72AF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 export default function RegisteredEmployees() {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL;
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState(new Date());
@@ -252,6 +269,7 @@ export default function RegisteredEmployees() {
   }, [Labbaseurl]);
 
   const fetchEmployees = async () => {
+    setLoading(true);
     try {
       let url = `${Labbaseurl}get_all_registered_employees/?`;
       if (selectedCompany) url += `company_id=${selectedCompany}&`;
@@ -261,6 +279,7 @@ export default function RegisteredEmployees() {
       const res = await axios.get(url);
       setEmployees(res.data || []);
     } catch (err) { console.error("Fetch Error:", err); }
+    setLoading(false);
   };
 
   const handleFilterSubmit = () => {
@@ -273,6 +292,7 @@ export default function RegisteredEmployees() {
     setStartDate(null);
     setEndDate(null);
     setSelectedCompany("");
+    setLoading(true);
     try {
       const res = await axios.get(`${Labbaseurl}get_all_registered_employees/`);
       setEmployees(res.data || []);
@@ -280,6 +300,7 @@ export default function RegisteredEmployees() {
     } catch (err) {
       console.error("Clear Filters Error:", err);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -294,6 +315,10 @@ export default function RegisteredEmployees() {
     return () => clearTimeout(delay);
   }, [searchInput]);
 
+  const hasContractor = useMemo(() => {
+    return employees.some(emp => emp.contractor && emp.contractor.trim() !== "");
+  }, [employees]);
+
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const s = searchTerm.toLowerCase();
@@ -302,7 +327,8 @@ export default function RegisteredEmployees() {
         emp.employee_name?.toLowerCase().includes(s) ||
         emp.employee_id?.toString().includes(s) ||
         emp.barcode?.toLowerCase().includes(s) ||
-        emp.department?.toLowerCase().includes(s);
+        emp.department?.toLowerCase().includes(s) ||
+        emp.contractor?.toLowerCase().includes(s);
 
       return matchesSearch;
     });
@@ -312,22 +338,63 @@ export default function RegisteredEmployees() {
   const currentData = filteredEmployees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleDownload = () => {
-    const exportData = filteredEmployees.map(emp => ({
-      "Employee ID": emp.employee_id,
-      "Barcode": emp.barcode || "-",
-      "Name": emp.employee_name,
-      "Company": emp.company_name || "-",
-      "Gender": emp.gender,
-      "Age": emp.age,
-      "Department": emp.department,
-      "Email": emp.email || "-",
-      "Mobile": emp.mobile || "-",
-      "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"
-    }));
+    const exportData = filteredEmployees.map(emp => {
+      const row = {
+        "Employee ID": emp.employee_id,
+        "Barcode": emp.barcode || "-",
+        "Name": emp.employee_name,
+        "Company": emp.company_name || "-",
+      };
+      if (hasContractor) {
+        row["Contractor"] = emp.contractor || "-";
+      }
+      Object.assign(row, {
+        "Gender": emp.gender,
+        "Age": emp.age,
+        "Department": emp.department,
+        "Email": emp.email || "-",
+        "Mobile": emp.mobile || "-",
+        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"
+      });
+      return row;
+    });
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employees");
     XLSX.writeFile(wb, "Employee_Directory.xlsx");
+  };
+
+  const handleDownloadCSV = () => {
+    const exportData = filteredEmployees.map(emp => {
+      const row = {
+        "Employee ID": emp.employee_id,
+        "Barcode": emp.barcode || "-",
+        "Name": emp.employee_name,
+        "Company": emp.company_name || "-",
+      };
+      if (hasContractor) {
+        row["Contractor"] = emp.contractor || "-";
+      }
+      Object.assign(row, {
+        "Gender": emp.gender,
+        "Age": emp.age,
+        "Department": emp.department,
+        "Email": emp.email || "-",
+        "Mobile": emp.mobile || "-",
+        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"
+      });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csvContent = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Employee_Directory.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getPaginationRange = () => {
@@ -352,6 +419,9 @@ export default function RegisteredEmployees() {
             <IconButton onClick={handleDownload} style={{ background: '#48BB78', color: '#fff' }}>
               <Download size={18} /> Export Excel
             </IconButton>
+            {/* <IconButton onClick={handleDownloadCSV} style={{ background: '#3182CE', color: '#fff' }}>
+              <Download size={18} /> Export CSV
+            </IconButton> */}
             {(searchTerm || startDate || endDate || selectedCompany) && (
               <IconButton onClick={handleClearFilters} style={{ background: '#F56565', color: '#fff' }}>
                 <FilterX size={18} /> Clear Filters
@@ -399,6 +469,7 @@ export default function RegisteredEmployees() {
                 <th>Barcode</th>
                 <th>Name</th>
                 <th>Company</th>
+                {hasContractor && <th>Contractor</th>}
                 <th>Gender</th>
                 <th>Age</th>
                 <th>Dept</th>
@@ -409,26 +480,35 @@ export default function RegisteredEmployees() {
               </tr>
             </thead>
             <tbody>
-              {currentData.length > 0 ? currentData.map((emp, i) => (
-                <tr key={emp.employee_id || i}>
-                  <Td data-label="Employee ID">{emp.employee_id}</Td>
-                  <Td data-label="Barcode">{emp.barcode || "-"}</Td>
-                  <Td data-label="Name" style={{ fontWeight: '600' }}>{emp.employee_name}</Td>
-                  <Td data-label="Company">{emp.company_name || "-"}</Td>
-                  <Td data-label="Gender">{emp.gender}</Td>
-                  <Td data-label="Age">{emp.age}</Td>
-                  <Td data-label="Dept">{emp.department || "N/A"}</Td>
-                  <Td data-label="Email">{emp.email || "-"}</Td>
-                  <Td data-label="Mobile">{emp.mobile || "-"}</Td>
-                  <Td data-label="Created Date">
-                    {emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"}
-                  </Td>
-                  <Td data-label="Created Time">
-                    {emp.created_date ? new Date(emp.created_date).toLocaleTimeString() : "-"}
+              {loading ? (
+                <tr>
+                  <Td colSpan={hasContractor ? 12 : 11} style={{ textAlign: 'center', padding: '40px', color: '#666', fontWeight: 600 }}>
+                    <SimpleSpinner /> Loading records...
                   </Td>
                 </tr>
-              )) : (
-                <tr><Td colSpan="10" style={{ textAlign: 'center', padding: '40px' }}>No records found.</Td></tr>
+              ) : currentData.length > 0 ? (
+                currentData.map((emp, i) => (
+                  <tr key={emp.employee_id || i}>
+                    <Td data-label="Employee ID">{emp.employee_id}</Td>
+                    <Td data-label="Barcode">{emp.barcode || "-"}</Td>
+                    <Td data-label="Name" style={{ fontWeight: '600' }}>{emp.employee_name}</Td>
+                    <Td data-label="Company">{emp.company_name || "-"}</Td>
+                    {hasContractor && <Td data-label="Contractor">{emp.contractor || "-"}</Td>}
+                    <Td data-label="Gender">{emp.gender}</Td>
+                    <Td data-label="Age">{emp.age}</Td>
+                    <Td data-label="Dept">{emp.department || "N/A"}</Td>
+                    <Td data-label="Email">{emp.email || "-"}</Td>
+                    <Td data-label="Mobile">{emp.mobile || "-"}</Td>
+                    <Td data-label="Created Date">
+                      {emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"}
+                    </Td>
+                    <Td data-label="Created Time">
+                      {emp.created_date ? new Date(emp.created_date).toLocaleTimeString() : "-"}
+                    </Td>
+                  </tr>
+                ))
+              ) : (
+                <tr><Td colSpan={hasContractor ? 12 : 11} style={{ textAlign: 'center', padding: '40px' }}>No records found.</Td></tr>
               )}
             </tbody>
           </StyledTable>
