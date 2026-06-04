@@ -250,6 +250,7 @@ export default function Sidebar() {
     { path: "/CreditToPaid", label: "Payments", icon: <CheckCircle /> },
     { path: "/PaymentReport", label: "Payment Report", icon: <ClipboardData /> },
     { path: "/PackageCreation", label: "Company & Package Creation", icon: <PersonLinesFill /> },
+    { path: "/OverAllApproveReport", label: "OverAll Approval Report", icon: <ClipboardData /> },
   ]), []);
 
   // Filter by role

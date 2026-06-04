@@ -21,7 +21,7 @@ import OffsitePatients from "./Components/OffsitePatients";
 import CreditToPaid from "./Components/CreditToPaid";
 import PaymentReport from "./Components/PaymentReport";
 import InvestigationChecklist from "./Components/InvestigationChecklist";
-
+import OverAllApproveReport from "./Components/OverAllApproveReport";
 
 // Content now accepts a flag to control the left margin
 const Content = styled.div`
@@ -60,7 +60,7 @@ function AppInner() {
           <Route path="/CreditToPaid" element={<CreditToPaid />} />
           <Route path="/PaymentReport" element={<PaymentReport />} />
           <Route path="/InvestigationChecklist" element={<InvestigationChecklist />} />
-
+          <Route path="/OverAllApproveReport" element={<OverAllApproveReport />} />
           <Route path="/" element={<Login />} />
 
 
