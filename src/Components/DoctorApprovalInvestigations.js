@@ -4,7 +4,7 @@ import axios from "axios";
 import styled from "styled-components";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Eye, X, Maximize2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Eye, X, Maximize2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit, Trash2, Save } from "lucide-react";
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -506,6 +506,11 @@ export default function DoctorApprovalInvestigations() {
   const [previewFile, setPreviewFile] = useState(null); // { url, type: 'image' | 'pdf' }
   const [fileLoading, setFileLoading] = useState(false);
   const [loadingResultsId, setLoadingResultsId] = useState(null);
+  
+  // Edit Test State
+  const [editingTestId, setEditingTestId] = useState(null);
+  const [editReport, setEditReport] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -532,10 +537,81 @@ export default function DoctorApprovalInvestigations() {
     setTimeout(() => setToast({ show: false, msg: "", type: "" }), 3000);
   };
 
+  const handleDeleteFile = async (testId, fileId) => {
+    if (selectedInv?.status === 'approved') {
+      showToast("Cannot delete files for approved investigations", "error");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete this image?")) return;
+    try {
+      await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
+        barcode: selectedInv.barcode,
+        test_id: testId,
+        file_id: fileId
+      });
+      
+      const updatedTestResults = selectedInv.test_results.map(test => {
+        if (String(test.test_id) === String(testId)) {
+          return {
+            ...test,
+            files: test.files.filter(fid => fid !== fileId)
+          };
+        }
+        return test;
+      });
+      const updatedInv = { ...selectedInv, test_results: updatedTestResults };
+      setSelectedInv(updatedInv);
+      setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
+      showToast("Image deleted successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to delete image", "error");
+    }
+  };
+
+  const handleSaveTestEdit = async (testId) => {
+    if (selectedInv?.status === 'approved') {
+      showToast("Cannot edit details for approved investigations", "error");
+      return;
+    }
+    try {
+      await axios.post(`${Labbaseurl}update_investigation_test/`, {
+        barcode: selectedInv.barcode,
+        test_id: testId,
+        report: editReport,
+        notes: editNotes
+      });
+      
+      const updatedTestResults = selectedInv.test_results.map(test => {
+        if (String(test.test_id) === String(testId)) {
+          return {
+            ...test,
+            report: editReport,
+            notes: editNotes
+          };
+        }
+        return test;
+      });
+      const updatedInv = { ...selectedInv, test_results: updatedTestResults };
+      setSelectedInv(updatedInv);
+      setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
+      
+      setEditingTestId(null);
+      showToast("Test results updated successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to update test results", "error");
+    }
+  };
+
   const handleApprove = async (barcode) => {
     try {
       await axios.patch(`${Labbaseurl}approve_investigation/${barcode}/`);
       setInvestigations(prev => prev.map(inv => inv.barcode === barcode ? { ...inv, status: "approved" } : inv));
+      if (selectedInv && selectedInv.barcode === barcode) {
+        setSelectedInv(prev => ({ ...prev, status: "approved" }));
+        setEditingTestId(null);
+      }
       showToast("Investigation Approved!", "success");
     } catch (err) { showToast("Approval Failed", "error"); }
   };
@@ -572,25 +648,56 @@ export default function DoctorApprovalInvestigations() {
     }
   };
 
-  const renderFiles = (files) => {
+  const renderFiles = (files, testId, isEditing) => {
     if (!files || files.length === 0) return "-";
     return (
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {files.map(fileId => {
           const url = `${Labbaseurl}get_file/${fileId}/`;
           return (
-            <FileBox key={fileId} onClick={() => handleFileClick(url)}>
-              <img 
-                src={url} 
-                alt="file" 
-                onError={(e) => {
-                  // Final safeguard: if image fails, it's likely a PDF or a missing file
-                  e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; 
-                }} 
-              />
-              <div className="preview-icon"><Maximize2 size={16} /></div>
-            </FileBox>
+            <div key={fileId} style={{ position: 'relative' }}>
+              <FileBox onClick={() => handleFileClick(url)}>
+                <img 
+                  src={url} 
+                  alt="file" 
+                  onError={(e) => {
+                    // Final safeguard: if image fails, it's likely a PDF or a missing file
+                    e.target.onerror = null; // Prevent infinite loop
+                    e.target.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; 
+                  }} 
+                />
+                <div className="preview-icon"><Maximize2 size={16} /></div>
+              </FileBox>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFile(testId, fileId);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '-6px',
+                    background: '#f43f5e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    zIndex: 20
+                  }}
+                  title="Delete image"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
@@ -800,29 +907,139 @@ export default function DoctorApprovalInvestigations() {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {selectedInv.test_results?.length > 0 ? selectedInv.test_results.map((test, idx) => (
-                  <div key={idx} style={{ padding: '16px', borderRadius: '12px', border: '1px solid #f1f5f9', background: '#fff', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <h4 style={{ margin: 0, color: '#112D4E', fontSize: '16px', fontWeight: '800' }}>{test.test_name}</h4>
+                {selectedInv.test_results?.length > 0 ? selectedInv.test_results.map((test, idx) => {
+                  const isEditing = String(editingTestId) === String(test.test_id);
+                  return (
+                    <div key={idx} style={{ padding: '16px', borderRadius: '12px', border: '1px solid #f1f5f9', background: '#fff', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4 style={{ margin: 0, color: '#112D4E', fontSize: '16px', fontWeight: '800' }}>{test.test_name}</h4>
+                        {!isEditing && selectedInv.status !== 'approved' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTestId(test.test_id);
+                              setEditReport(test.report || "");
+                              setEditNotes(test.notes || "");
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#3F72AF',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              fontWeight: 700
+                            }}
+                            title="Edit test details"
+                          >
+                            <Edit size={14} /> Edit
+                          </button>
+                        )}
+                      </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>REPORT :</span>
-                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{test.report || "No report"}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', flex: 1, minWidth: '200px' }}>
+                          <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px', marginTop: '6px' }}>REPORT :</span>
+                          {isEditing ? (
+                            <textarea
+                              value={editReport}
+                              onChange={e => setEditReport(e.target.value)}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                outline: 'none',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                minHeight: '60px',
+                                boxSizing: 'border-box'
+                              }}
+                              rows={Math.max(2, Math.ceil((editReport || "").length / 80))}
+                            />
+                          ) : (
+                            <span style={{ fontSize: '14px', fontWeight: 600 }}>{test.report || "No report"}</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>FILES :</span>
+                          {renderFiles(test.files, test.test_id, isEditing)}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>FILES :</span>
-                        {renderFiles(test.files)}
-                      </div>
+
+                      {(isEditing || test.notes) && (
+                        <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '8px' }}>
+                          <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>NOTE :</span>
+                          {isEditing ? (
+                            <textarea
+                              value={editNotes}
+                              onChange={e => setEditNotes(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '13px',
+                                fontFamily: 'inherit',
+                                marginTop: '4px',
+                                boxSizing: 'border-box',
+                                outline: 'none'
+                              }}
+                              rows={2}
+                              placeholder="Add clinical notes..."
+                            />
+                          ) : (
+                            <span style={{ fontSize: '13px', marginLeft: '8px', color: '#1e293b' }}>{test.notes}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {isEditing && (
+                        <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-end', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveTestEdit(test.test_id)}
+                            style={{
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Save size={14} /> Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingTestId(null)}
+                            style={{
+                              background: '#cbd5e1',
+                              color: '#1e293b',
+                              border: 'none',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
-
-                    {test.notes && (
-                      <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '8px' }}>
-                        <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>NOTE :</span>
-                        <span style={{ fontSize: '13px', marginLeft: '8px', color: '#1e293b' }}>{test.notes}</span>
-                      </div>
-                    )}
-                  </div>
-                )) : (
+                  );
+                }) : (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                     <AlertCircle size={48} style={{ marginBottom: '10px', opacity: 0.5 }} />
                     <p>No detailed test results found for this investigation.</p>
