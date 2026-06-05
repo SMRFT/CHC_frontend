@@ -1090,7 +1090,7 @@ const HealthDashboard = () => {
           </ChartCard>
         </ChartsGrid>
 
-        <TableContainer>
+        {/* <TableContainer>
           <ChartTitle>Employee Health Details (Top 20)</ChartTitle>
           <Table>
             <thead>
@@ -1159,7 +1159,7 @@ const HealthDashboard = () => {
               })}
             </tbody>
           </Table>
-        </TableContainer>
+        </TableContainer> */}
           </>
         )}
       </DashboardContainer>
