@@ -939,12 +939,11 @@ export default function DoctorApprovalInvestigations() {
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1, minWidth: '200px' }}>
-                          <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px' }}>REPORT :</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', flex: 1, minWidth: '200px' }}>
+                          <span style={{ fontWeight: 700, color: '#64748b', fontSize: '13px', marginTop: '6px' }}>REPORT :</span>
                           {isEditing ? (
-                            <input
-                              type="text"
+                            <textarea
                               value={editReport}
                               onChange={e => setEditReport(e.target.value)}
                               style={{
@@ -954,8 +953,13 @@ export default function DoctorApprovalInvestigations() {
                                 border: '1px solid #cbd5e1',
                                 fontSize: '14px',
                                 fontWeight: 600,
-                                outline: 'none'
+                                outline: 'none',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                minHeight: '60px',
+                                boxSizing: 'border-box'
                               }}
+                              rows={Math.max(2, Math.ceil((editReport || "").length / 80))}
                             />
                           ) : (
                             <span style={{ fontSize: '14px', fontWeight: 600 }}>{test.report || "No report"}</span>
