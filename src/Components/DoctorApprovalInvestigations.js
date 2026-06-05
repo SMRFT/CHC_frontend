@@ -538,6 +538,10 @@ export default function DoctorApprovalInvestigations() {
   };
 
   const handleDeleteFile = async (testId, fileId) => {
+    if (selectedInv?.status === 'approved') {
+      showToast("Cannot delete files for approved investigations", "error");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this image?")) return;
     try {
       await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
@@ -566,6 +570,10 @@ export default function DoctorApprovalInvestigations() {
   };
 
   const handleSaveTestEdit = async (testId) => {
+    if (selectedInv?.status === 'approved') {
+      showToast("Cannot edit details for approved investigations", "error");
+      return;
+    }
     try {
       await axios.post(`${Labbaseurl}update_investigation_test/`, {
         barcode: selectedInv.barcode,
@@ -600,6 +608,10 @@ export default function DoctorApprovalInvestigations() {
     try {
       await axios.patch(`${Labbaseurl}approve_investigation/${barcode}/`);
       setInvestigations(prev => prev.map(inv => inv.barcode === barcode ? { ...inv, status: "approved" } : inv));
+      if (selectedInv && selectedInv.barcode === barcode) {
+        setSelectedInv(prev => ({ ...prev, status: "approved" }));
+        setEditingTestId(null);
+      }
       showToast("Investigation Approved!", "success");
     } catch (err) { showToast("Approval Failed", "error"); }
   };
@@ -901,7 +913,7 @@ export default function DoctorApprovalInvestigations() {
                     <div key={idx} style={{ padding: '16px', borderRadius: '12px', border: '1px solid #f1f5f9', background: '#fff', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h4 style={{ margin: 0, color: '#112D4E', fontSize: '16px', fontWeight: '800' }}>{test.test_name}</h4>
-                        {!isEditing && (
+                        {!isEditing && selectedInv.status !== 'approved' && (
                           <button
                             type="button"
                             onClick={() => {
