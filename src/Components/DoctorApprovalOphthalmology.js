@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import styled from "styled-components";
+import apiRequest from "./apiRequest";
 import { Eye, Search, X, Check, Calendar, User, Hash, CheckCircle, Clock } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -594,8 +594,8 @@ export default function DoctorApprovalOphthalmology() {
           url += `&to_date=${endDate.toISOString().split('T')[0]}`;
         }
       }
-      const response = await axios.get(url);
-      setOphthalmology(response.data || []);
+      const response = await apiRequest(url);
+      setOphthalmology(response.success ? response.data : []);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -616,11 +616,15 @@ export default function DoctorApprovalOphthalmology() {
 
   const handleApprove = async (barcode) => {
     try {
-      await axios.patch(`${Labbaseurl}approve_ophthalmology/${barcode}/`);
-      setOphthalmology((prev) =>
-        prev.map((op) => (op.barcode === barcode ? { ...op, status: "approved" } : op))
-      );
-      showNotification("Ophthalmology record approved successfully!", "success");
+      const response = await apiRequest(`${Labbaseurl}approve_ophthalmology/${barcode}/`, 'PATCH');
+      if (response.success) {
+        setOphthalmology((prev) =>
+          prev.map((op) => (op.barcode === barcode ? { ...op, status: "approved" } : op))
+        );
+        showNotification("Ophthalmology record approved successfully!", "success");
+      } else {
+        showNotification(response.error || "Failed to approve record. Please try again.", "error");
+      }
     } catch (err) {
       console.error(err);
       showNotification("Failed to approve record. Please try again.", "error");

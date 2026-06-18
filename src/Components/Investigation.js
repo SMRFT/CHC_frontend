@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import styled from "styled-components"
-import axios from "axios"
+import apiRequest from "./apiRequest"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { Printer, Edit2, AlertCircle, X } from "lucide-react"
@@ -562,8 +562,12 @@ export default function Investigation() {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get(`${Labbaseurl}companies/`);
-        setCompanies(Array.isArray(res.data) ? res.data : []);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        } else {
+          showToast("Failed to load companies", "error");
+        }
       } catch (err) {
         console.error("Error fetching companies:", err);
         showToast("Failed to load companies", "error");
@@ -577,9 +581,13 @@ export default function Investigation() {
     if (bulkUploadCompanyId) {
       const fetchPackages = async () => {
         try {
-          const res = await axios.get(`${Labbaseurl}get_packages/?company_id=${bulkUploadCompanyId}`);
-          // The API returns an object { status: "success", data: [...] }
-          setPackages(res.data?.data || []);
+          const res = await apiRequest(`${Labbaseurl}get_packages/?company_id=${bulkUploadCompanyId}`, "GET");
+          if (res.success) {
+            // The API returns an object { status: "success", data: [...] }
+            setPackages(res.data?.data || []);
+          } else {
+            showToast("Failed to load packages", "error");
+          }
         } catch (err) {
           console.error("Error fetching packages:", err);
           showToast("Failed to load packages", "error");
@@ -626,17 +634,18 @@ export default function Investigation() {
     setBulkUploadProgress(0);
 
     try {
-      const response = await axios.post(`${Labbaseurl}bulk_upload_investigation_files/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
+      const response = await apiRequest(`${Labbaseurl}bulk_upload_investigation_files/`, 'POST', formData, {
+        'Content-Type': 'multipart/form-data'
+      }, {
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setBulkUploadProgress(percentCompleted);
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setBulkUploadProgress(percentCompleted);
+          }
         }
       });
 
-      if (response.status === 200) {
+      if (response.success) {
         showToast(`Bulk upload successful! ${response.data.results?.success || 0} files processed.`, "success");
         if (response.data.results?.failed > 0) {
           console.warn("Bulk upload errors:", response.data.results.errors);
@@ -647,10 +656,12 @@ export default function Investigation() {
         setBulkUploadTestId("");
         // Refresh data
         refreshData(startDate, endDate);
+      } else {
+        showToast(response.error || "Bulk upload failed", "error");
       }
     } catch (error) {
       console.error("Bulk upload error:", error);
-      showToast(error.response?.data?.error || "Bulk upload failed", "error");
+      showToast("Bulk upload failed", "error");
     } finally {
       setIsBulkUploading(false);
       setBulkUploadProgress(0);
@@ -910,20 +921,27 @@ export default function Investigation() {
     }
 
     try {
-      const empRes = await axios.get(empUrl)
-      const employeesData = empRes.data || []
-      const invRes = await axios.get(invUrl)
-      const investigationsData = invRes.data || []
+      const empRes = await apiRequest(empUrl, "GET")
+      const invRes = await apiRequest(invUrl, "GET")
 
-      const merged = employeesData.map((emp) => {
-        // Improved matching: use barcode if available, else fallback to employee_id
-        const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
-        return inv ? { ...emp, ...inv } : emp
-      })
+      if (empRes.success && invRes.success) {
+        const employeesData = empRes.data || []
+        const investigationsData = invRes.data || []
 
-      setEmployees(merged)
-      setLoading(false)
-      return merged
+        const merged = employeesData.map((emp) => {
+          // Improved matching: use barcode if available, else fallback to employee_id
+          const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
+          return inv ? { ...emp, ...inv } : emp
+        })
+
+        setEmployees(merged)
+        setLoading(false)
+        return merged
+      } else {
+        setLoading(false)
+        showToast("Failed to fetch employees or investigations data", "error")
+        return []
+      }
     } catch (err) {
       setLoading(false)
       throw err
@@ -1171,13 +1189,13 @@ export default function Investigation() {
     if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return
 
     try {
-      const resp = await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
+      const resp = await apiRequest(`${Labbaseurl}delete_file_from_investigation/`, 'POST', {
         barcode: form.barcode,
         test_id: form.test_results[testIdx].test_id,
         file_id: fileId
       })
 
-      if (resp.data.status === "success") {
+      if (resp.success && resp.data.status === "success") {
         showToast("File deleted successfully", "success")
         // Update local state to remove the file ID
         setForm(prev => {
@@ -1185,10 +1203,12 @@ export default function Investigation() {
           newTests[testIdx].files = newTests[testIdx].files.filter(fid => fid !== fileId)
           return { ...prev, test_results: newTests }
         })
+      } else {
+        showToast(resp.error || "Failed to delete file", "error")
       }
     } catch (err) {
       console.error("Delete error:", err)
-      showToast(err.response?.data?.error || "Failed to delete file", "error")
+      showToast("Failed to delete file", "error")
     }
   }
 
@@ -1354,8 +1374,9 @@ export default function Investigation() {
         }
       })
 
-      await axios.post(`${Labbaseurl}save_investigation/`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await apiRequest(`${Labbaseurl}save_investigation/`, 'POST', fd, {
+        "Content-Type": "multipart/form-data"
+      }, {
         onUploadProgress: (evt) => {
           if (evt.total) {
             const percent = Math.round((evt.loaded * 100) / evt.total)
@@ -1364,11 +1385,17 @@ export default function Investigation() {
         },
       })
 
-      showToast("Investigation results saved successfully!", "success")
-      handleBackToList()
-      await refreshData(startDate, endDate)
-      setUploading(false)
-      setProgress(0)
+      if (res.success) {
+        showToast("Investigation results saved successfully!", "success")
+        handleBackToList()
+        await refreshData(startDate, endDate)
+        setUploading(false)
+        setProgress(0)
+      } else {
+        showToast(res.error || "Failed to save investigation. Please check your data.", "error")
+        setUploading(false)
+        setProgress(0)
+      }
     } catch (err) {
       console.error("Submit error:", err)
       showToast("Failed to save investigation. Please check your data.", "error")

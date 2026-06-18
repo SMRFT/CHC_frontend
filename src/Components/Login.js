@@ -192,6 +192,7 @@ const Login = () => {
         password: form.password,
       });
       toast.success("Login Successfully!", { autoClose: 2000 });
+      localStorage.setItem("access_token", data.token);
       localStorage.setItem("role", data.role);
       localStorage.setItem("name", data.name);
       if (data.company_id) {

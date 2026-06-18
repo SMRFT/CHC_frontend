@@ -2,9 +2,9 @@ import React, { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import { Download, Search, Calendar, FilterX, ChevronLeft, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
-import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import apiRequest from "./apiRequest";
 
 // --- Styled Components ---
 
@@ -256,13 +256,14 @@ export default function RegisteredEmployees() {
   const itemsPerPage = 20;
   const [companies, setCompanies] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState("");
+  const [selectedContractor, setSelectedContractor] = useState("");
 
   // Fetch Companies for dropdown
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get(`${Labbaseurl}companies/`);
-        setCompanies(res.data || []);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        setCompanies(res.success ? res.data : []);
       } catch (err) { console.error("Companies error:", err); }
     };
     fetchCompanies();
@@ -276,8 +277,8 @@ export default function RegisteredEmployees() {
       if (startDate) url += `from_date=${startDate.toISOString().split('T')[0]}&`;
       if (endDate) url += `to_date=${endDate.toISOString().split('T')[0]}&`;
       
-      const res = await axios.get(url);
-      setEmployees(res.data || []);
+      const res = await apiRequest(url, "GET");
+      setEmployees(res.success ? res.data : []);
     } catch (err) { console.error("Fetch Error:", err); }
     setLoading(false);
   };
@@ -292,10 +293,11 @@ export default function RegisteredEmployees() {
     setStartDate(null);
     setEndDate(null);
     setSelectedCompany("");
+    setSelectedContractor("");
     setLoading(true);
     try {
-      const res = await axios.get(`${Labbaseurl}get_all_registered_employees/`);
-      setEmployees(res.data || []);
+      const res = await apiRequest(`${Labbaseurl}get_all_registered_employees/`, "GET");
+      setEmployees(res.success ? res.data : []);
       setCurrentPage(1);
     } catch (err) {
       console.error("Clear Filters Error:", err);
@@ -315,9 +317,16 @@ export default function RegisteredEmployees() {
     return () => clearTimeout(delay);
   }, [searchInput]);
 
-  const hasContractor = useMemo(() => {
-    return employees.some(emp => emp.contractor && emp.contractor.trim() !== "");
+  const contractors = useMemo(() => {
+    const list = employees
+      .map(emp => emp.contractor)
+      .filter(c => c && c.trim() !== "");
+    return [...new Set(list)].sort();
   }, [employees]);
+
+  const hasContractor = useMemo(() => {
+    return (selectedContractor && selectedContractor !== "none") || employees.some(emp => emp.contractor && emp.contractor.trim() !== "");
+  }, [employees, selectedContractor]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
@@ -330,33 +339,43 @@ export default function RegisteredEmployees() {
         emp.department?.toLowerCase().includes(s) ||
         emp.contractor?.toLowerCase().includes(s);
 
-      return matchesSearch;
+      const matchesContractor =
+        !selectedContractor ? true :
+        selectedContractor === "none" ? (!emp.contractor || emp.contractor.trim() === "") :
+        emp.contractor === selectedContractor;
+
+      return matchesSearch && matchesContractor;
     });
-  }, [employees, searchTerm]);
+  }, [employees, searchTerm, selectedContractor]);
 
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
   const currentData = filteredEmployees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleDownload = () => {
     const exportData = filteredEmployees.map(emp => {
-      const row = {
+      return {
         "Employee ID": emp.employee_id,
         "Barcode": emp.barcode || "-",
         "Name": emp.employee_name,
-        "Company": emp.company_name || "-",
-      };
-      if (hasContractor) {
-        row["Contractor"] = emp.contractor || "-";
-      }
-      Object.assign(row, {
-        "Gender": emp.gender,
-        "Age": emp.age,
-        "Department": emp.department,
+        "Company Name": emp.company_name || "-",
+        "Company ID": emp.company_id || "-",
+        "Contractor": emp.contractor || "-",
+        "Gender": emp.gender || "-",
+        "Age": emp.age || "-",
+        "DOB": emp.dob ? new Date(emp.dob).toLocaleDateString() : "-",
+        "Designation": emp.designation || "-",
+        "Employee Type": emp.employee_type || "-",
+        "Department": emp.department || "-",
         "Email": emp.email || "-",
         "Mobile": emp.mobile || "-",
-        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"
-      });
-      return row;
+        "Package": emp.package_name || "-",
+        "Amount": emp.amount || "-",
+        "Payment Mode": emp.payment_mode || "-",
+        "DOJ": emp.doj ? new Date(emp.doj).toLocaleDateString() : "-",
+        "Experience": emp.experience || "-",
+        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-",
+        "Created Time": emp.created_date ? new Date(emp.created_date).toLocaleTimeString() : "-"
+      };
     });
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -366,24 +385,29 @@ export default function RegisteredEmployees() {
 
   const handleDownloadCSV = () => {
     const exportData = filteredEmployees.map(emp => {
-      const row = {
+      return {
         "Employee ID": emp.employee_id,
         "Barcode": emp.barcode || "-",
         "Name": emp.employee_name,
-        "Company": emp.company_name || "-",
-      };
-      if (hasContractor) {
-        row["Contractor"] = emp.contractor || "-";
-      }
-      Object.assign(row, {
-        "Gender": emp.gender,
-        "Age": emp.age,
-        "Department": emp.department,
+        "Company Name": emp.company_name || "-",
+        "Company ID": emp.company_id || "-",
+        "Contractor": emp.contractor || "-",
+        "Gender": emp.gender || "-",
+        "Age": emp.age || "-",
+        "DOB": emp.dob ? new Date(emp.dob).toLocaleDateString() : "-",
+        "Designation": emp.designation || "-",
+        "Employee Type": emp.employee_type || "-",
+        "Department": emp.department || "-",
         "Email": emp.email || "-",
         "Mobile": emp.mobile || "-",
-        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"
-      });
-      return row;
+        "Package": emp.package_name || "-",
+        "Amount": emp.amount || "-",
+        "Payment Mode": emp.payment_mode || "-",
+        "DOJ": emp.doj ? new Date(emp.doj).toLocaleDateString() : "-",
+        "Experience": emp.experience || "-",
+        "Created Date": emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-",
+        "Created Time": emp.created_date ? new Date(emp.created_date).toLocaleTimeString() : "-"
+      };
     });
     const ws = XLSX.utils.json_to_sheet(exportData);
     const csvContent = XLSX.utils.sheet_to_csv(ws);
@@ -422,7 +446,7 @@ export default function RegisteredEmployees() {
             {/* <IconButton onClick={handleDownloadCSV} style={{ background: '#3182CE', color: '#fff' }}>
               <Download size={18} /> Export CSV
             </IconButton> */}
-            {(searchTerm || startDate || endDate || selectedCompany) && (
+            {(searchTerm || startDate || endDate || selectedCompany || selectedContractor) && (
               <IconButton onClick={handleClearFilters} style={{ background: '#F56565', color: '#fff' }}>
                 <FilterX size={18} /> Clear Filters
               </IconButton>
@@ -456,6 +480,21 @@ export default function RegisteredEmployees() {
               ))}
             </select>
           </InputGroup>
+          <InputGroup>
+            <FilterX size={18} color="#999" />
+            <select 
+              value={selectedContractor} 
+              onChange={e => { setSelectedContractor(e.target.value); }}
+              style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', color: '#3F72AF' }}
+            >
+              <option value="">All</option>
+              <option value="none">No Contractor</option>
+              {contractors.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              
+            </select>
+          </InputGroup>
           <FilterBtn onClick={handleFilterSubmit}>
             Filter
           </FilterBtn>
@@ -475,6 +514,9 @@ export default function RegisteredEmployees() {
                 <th>Dept</th>
                 <th>Email</th>
                 <th>Mobile</th>
+                <th>Package</th>
+                <th>Amount</th>
+                <th>Payment Mode</th>
                 <th>Date</th>
                 <th>Time</th>
               </tr>
@@ -482,7 +524,7 @@ export default function RegisteredEmployees() {
             <tbody>
               {loading ? (
                 <tr>
-                  <Td colSpan={hasContractor ? 12 : 11} style={{ textAlign: 'center', padding: '40px', color: '#666', fontWeight: 600 }}>
+                  <Td colSpan={hasContractor ? 15 : 14} style={{ textAlign: 'center', padding: '40px', color: '#666', fontWeight: 600 }}>
                     <SimpleSpinner /> Loading records...
                   </Td>
                 </tr>
@@ -499,6 +541,9 @@ export default function RegisteredEmployees() {
                     <Td data-label="Dept">{emp.department || "N/A"}</Td>
                     <Td data-label="Email">{emp.email || "-"}</Td>
                     <Td data-label="Mobile">{emp.mobile || "-"}</Td>
+                    <Td data-label="Package">{emp.package_name || "-"}</Td>
+                    <Td data-label="Amount">{emp.amount || "-"}</Td>
+                    <Td data-label="Payment Mode">{emp.payment_mode || "-"}</Td>
                     <Td data-label="Created Date">
                       {emp.created_date ? new Date(emp.created_date).toLocaleDateString() : "-"}
                     </Td>
@@ -508,7 +553,7 @@ export default function RegisteredEmployees() {
                   </tr>
                 ))
               ) : (
-                <tr><Td colSpan={hasContractor ? 12 : 11} style={{ textAlign: 'center', padding: '40px' }}>No records found.</Td></tr>
+                <tr><Td colSpan={hasContractor ? 15 : 14} style={{ textAlign: 'center', padding: '40px' }}>No records found.</Td></tr>
               )}
             </tbody>
           </StyledTable>

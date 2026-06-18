@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import styled from "styled-components"
+import apiRequest from "./apiRequest"
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
@@ -131,9 +132,10 @@ const printBatchPDF = async (batch, companies) => {
   let packages = [];
   if (company_id) {
     try {
-      const r = await fetch(`${Labbaseurl}create_package/?company_id=${company_id}`);
-      const data = await r.json();
-      packages = Array.isArray(data) ? data : (data.data || []);
+      const res = await apiRequest(`${Labbaseurl}create_package/?company_id=${company_id}`, "GET");
+      if (res.success) {
+        packages = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      }
     } catch (e) { console.error(e); }
   }
 
@@ -305,10 +307,17 @@ const BatchList = () => {
 
   // ── Load companies ─────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${Labbaseurl}companies/`)
-      .then(r => r.json())
-      .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error)
+    const fetchCompanies = async () => {
+      try {
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCompanies();
   }, [Labbaseurl])
 
   // ── Fetch batches whenever server-side filters change ─────────────────────
@@ -326,22 +335,25 @@ const BatchList = () => {
       if (filters.from_date) url += `from_date=${filters.from_date}&`
       if (filters.to_date) url += `to_date=${filters.to_date}&`
 
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const data = await response.json()
-      const list = Array.isArray(data) ? data : data.results || []
+      const response = await apiRequest(url, "GET")
+      if (response.success) {
+        const data = response.data
+        const list = Array.isArray(data) ? data : data.results || []
 
-      // Resolve company_name from companies list if backend didn't provide it
-      const enriched = list.map(b => ({
-        ...b,
-        company_name:
-          b.company_name ||
-          companies.find(c => c.company_id === b.company_id)?.company_name ||
-          b.company_id ||
-          "",
-      }))
+        // Resolve company_name from companies list if backend didn't provide it
+        const enriched = list.map(b => ({
+          ...b,
+          company_name:
+            b.company_name ||
+            companies.find(c => c.company_id === b.company_id)?.company_name ||
+            b.company_id ||
+            "",
+        }))
 
-      setBatches(enriched)
+        setBatches(enriched)
+      } else {
+        throw new Error(response.error || "Failed to fetch batches")
+      }
     } catch (err) {
       setError(err.message)
     } finally {

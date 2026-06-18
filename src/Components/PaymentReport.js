@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import apiRequest from './apiRequest';
 import { Search, Calendar, User, Barcode, Download, Filter, TrendingUp, IndianRupee } from 'lucide-react';
 
 const Container = styled.div`
@@ -198,12 +198,14 @@ const PaymentReport = () => {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      const res = await axios.post(`${base_url}payment_report/`, {
+      const res = await apiRequest(`${base_url}payment_report/`, 'POST', {
         from_date: fromDate,
         to_date: toDate
       });
-      if (res.data.status === 'success') {
+      if (res.success && res.data.status === 'success') {
         setData(res.data.data);
+      } else {
+        toast.error(res.error || 'Failed to fetch payment report');
       }
     } catch (err) {
       toast.error('Failed to fetch payment report');

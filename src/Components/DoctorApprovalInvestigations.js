@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import axios from "axios";
 import styled from "styled-components";
+import apiRequest from "./apiRequest";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Eye, X, Maximize2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit, Trash2, Save } from "lucide-react";
@@ -522,8 +522,8 @@ export default function DoctorApprovalInvestigations() {
           url += `&to_date=${endDate.toISOString().split('T')[0]}`;
         }
       }
-      const res = await axios.get(url);
-      setInvestigations(res.data || []);
+      const res = await apiRequest(url);
+      setInvestigations(res.success ? res.data : []);
     } catch (err) { console.error(err); }
     setLoading(false);
   }, [startDate, endDate]);
@@ -544,25 +544,29 @@ export default function DoctorApprovalInvestigations() {
     }
     if (!window.confirm("Are you sure you want to delete this image?")) return;
     try {
-      await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
+      const res = await apiRequest(`${Labbaseurl}delete_file_from_investigation/`, 'POST', {
         barcode: selectedInv.barcode,
         test_id: testId,
         file_id: fileId
       });
       
-      const updatedTestResults = selectedInv.test_results.map(test => {
-        if (String(test.test_id) === String(testId)) {
-          return {
-            ...test,
-            files: test.files.filter(fid => fid !== fileId)
-          };
-        }
-        return test;
-      });
-      const updatedInv = { ...selectedInv, test_results: updatedTestResults };
-      setSelectedInv(updatedInv);
-      setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
-      showToast("Image deleted successfully!", "success");
+      if (res.success) {
+        const updatedTestResults = selectedInv.test_results.map(test => {
+          if (String(test.test_id) === String(testId)) {
+            return {
+              ...test,
+              files: test.files.filter(fid => fid !== fileId)
+            };
+          }
+          return test;
+        });
+        const updatedInv = { ...selectedInv, test_results: updatedTestResults };
+        setSelectedInv(updatedInv);
+        setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
+        showToast("Image deleted successfully!", "success");
+      } else {
+        showToast(res.error || "Failed to delete image", "error");
+      }
     } catch (err) {
       console.error(err);
       showToast("Failed to delete image", "error");
@@ -575,29 +579,33 @@ export default function DoctorApprovalInvestigations() {
       return;
     }
     try {
-      await axios.post(`${Labbaseurl}update_investigation_test/`, {
+      const res = await apiRequest(`${Labbaseurl}update_investigation_test/`, 'POST', {
         barcode: selectedInv.barcode,
         test_id: testId,
         report: editReport,
         notes: editNotes
       });
       
-      const updatedTestResults = selectedInv.test_results.map(test => {
-        if (String(test.test_id) === String(testId)) {
-          return {
-            ...test,
-            report: editReport,
-            notes: editNotes
-          };
-        }
-        return test;
-      });
-      const updatedInv = { ...selectedInv, test_results: updatedTestResults };
-      setSelectedInv(updatedInv);
-      setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
-      
-      setEditingTestId(null);
-      showToast("Test results updated successfully!", "success");
+      if (res.success) {
+        const updatedTestResults = selectedInv.test_results.map(test => {
+          if (String(test.test_id) === String(testId)) {
+            return {
+              ...test,
+              report: editReport,
+              notes: editNotes
+            };
+          }
+          return test;
+        });
+        const updatedInv = { ...selectedInv, test_results: updatedTestResults };
+        setSelectedInv(updatedInv);
+        setInvestigations(prev => prev.map(inv => inv.barcode === selectedInv.barcode ? updatedInv : inv));
+        
+        setEditingTestId(null);
+        showToast("Test results updated successfully!", "success");
+      } else {
+        showToast(res.error || "Failed to update test results", "error");
+      }
     } catch (err) {
       console.error(err);
       showToast("Failed to update test results", "error");
@@ -606,13 +614,17 @@ export default function DoctorApprovalInvestigations() {
 
   const handleApprove = async (barcode) => {
     try {
-      await axios.patch(`${Labbaseurl}approve_investigation/${barcode}/`);
-      setInvestigations(prev => prev.map(inv => inv.barcode === barcode ? { ...inv, status: "approved" } : inv));
-      if (selectedInv && selectedInv.barcode === barcode) {
-        setSelectedInv(prev => ({ ...prev, status: "approved" }));
-        setEditingTestId(null);
+      const res = await apiRequest(`${Labbaseurl}approve_investigation/${barcode}/`, 'PATCH');
+      if (res.success) {
+        setInvestigations(prev => prev.map(inv => inv.barcode === barcode ? { ...inv, status: "approved" } : inv));
+        if (selectedInv && selectedInv.barcode === barcode) {
+          setSelectedInv(prev => ({ ...prev, status: "approved" }));
+          setEditingTestId(null);
+        }
+        showToast("Investigation Approved!", "success");
+      } else {
+        showToast(res.error || "Approval Failed", "error");
       }
-      showToast("Investigation Approved!", "success");
     } catch (err) { showToast("Approval Failed", "error"); }
   };
 
@@ -629,15 +641,19 @@ export default function DoctorApprovalInvestigations() {
     console.log("File clicked, detecting type for:", url);
     setFileLoading(true);
     try {
-      const res = await axios.get(url, { responseType: 'blob' });
-      const blob = res.data;
-      console.log("Blob detected:", blob.type, "Size:", blob.size);
-      const blobUrl = URL.createObjectURL(blob);
-      
-      if (blob.type === 'application/pdf') {
-        setPreviewFile({ url: blobUrl, type: 'pdf' });
+      const res = await apiRequest(url, 'GET', null, {}, { responseType: 'blob' });
+      if (res.success) {
+        const blob = res.data;
+        console.log("Blob detected:", blob.type, "Size:", blob.size);
+        const blobUrl = URL.createObjectURL(blob);
+        
+        if (blob.type === 'application/pdf') {
+          setPreviewFile({ url: blobUrl, type: 'pdf' });
+        } else {
+          setPreviewFile({ url: blobUrl, type: 'image' });
+        }
       } else {
-        setPreviewFile({ url: blobUrl, type: 'image' });
+        setPreviewFile({ url, type: 'image' });
       }
     } catch (err) {
       console.error("Error detecting file type:", err);

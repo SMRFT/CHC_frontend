@@ -4,6 +4,7 @@ import { FaSave, FaSearch, FaFileDownload, FaUsers, FaCheckDouble, FaVial, FaTim
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from 'xlsx';
+import apiRequest from "./apiRequest";
 
 // 🎨 Styled Components
 const PageContainer = styled.div`
@@ -341,9 +342,10 @@ const InvestigationChecklist = () => {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await fetch(`${Labbaseurl}companies/`);
-        const data = await res.json();
-        setCompanies(data || []);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(res.data || []);
+        }
       } catch (err) {
         console.error("Failed to fetch companies", err);
       }
@@ -361,9 +363,9 @@ const InvestigationChecklist = () => {
     setLoading(true);
     try {
       const companyParam = selectedCompany ? `&company_id=${selectedCompany}` : "";
-      const res = await fetch(`${Labbaseurl}get_investigation_checklists/?from_date=${fromDate}&to_date=${toDate}${companyParam}`);
-      const data = await res.json();
-      if (data.status === "success") {
+      const res = await apiRequest(`${Labbaseurl}get_investigation_checklists/?from_date=${fromDate}&to_date=${toDate}${companyParam}`, "GET");
+      if (res.success && res.data.status === "success") {
+        const data = res.data;
         setChecklists(data.data);
         setStats(data.stats || { total_patients: 0, fully_completed_patients: 0, test_stats: {} });
         
@@ -407,20 +409,15 @@ const InvestigationChecklist = () => {
     }));
 
     try {
-      const res = await fetch(`${Labbaseurl}update_investigation_checklist/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          employee_id: empId,
-          checklist: newChecklist
-        })
+      const res = await apiRequest(`${Labbaseurl}update_investigation_checklist/`, "POST", {
+        employee_id: empId,
+        checklist: newChecklist
       });
-      const data = await res.json();
-      if (data.status === "success") {
+      if (res.success && res.data.status === "success") {
         toast.success(`Status updated for ${targetPatient.employee_name}`);
         fetchChecklists();
       } else {
-        toast.error(data.message);
+        toast.error(res.error || (res.data && res.data.message) || "Error saving progress");
       }
     } catch (err) {
       toast.error("Error saving progress");

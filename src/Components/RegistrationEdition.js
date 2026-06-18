@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import apiRequest from "./apiRequest";
 // Styled Components
 const ModalOverlay = styled.div`
   position: fixed;
@@ -196,13 +197,12 @@ const RegistrationEdition = ({ onClose, onUpdated }) => {
     if (!employeeId) return alert("Enter Employee ID");
     setLoading(true);
     try {
-      const res = await fetch(`${Labbaseurl}chc_emp_get/${employeeId}/`);
-      const data = await res.json();
-      if (res.ok) {
-        setFormData(data.data);
-        onUpdated(data.data);
+      const res = await apiRequest(`${Labbaseurl}chc_emp_get/${employeeId}/`, "GET");
+      if (res.success) {
+        setFormData(res.data.data);
+        onUpdated(res.data.data);
       } else {
-        alert(data.message || "Employee not found");
+        alert(res.error || "Employee not found");
       }
     } catch (err) {
       console.error(err);
@@ -225,21 +225,17 @@ const RegistrationEdition = ({ onClose, onUpdated }) => {
     };
     delete payload.employee_name;
     try {
-      const res = await fetch(
+      const res = await apiRequest(
         `${Labbaseurl}chc_emp_update/${formData.employee_id}/`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
+        "PATCH",
+        payload
       );
-      const data = await res.json();
-      if (res.ok) {
+      if (res.success) {
         alert("Employee updated successfully");
-        onUpdated(data.data);
+        onUpdated(res.data.data);
         onClose();
       } else {
-        alert(data.message || "Update failed");
+        alert(res.error || "Update failed");
       }
     } catch (err) {
       console.error(err);
