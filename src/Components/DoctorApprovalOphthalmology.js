@@ -616,7 +616,7 @@ export default function DoctorApprovalOphthalmology() {
 
   const handleApprove = async (barcode) => {
     try {
-      const response = await apiRequest(`${Labbaseurl}approve_ophthalmology/${barcode}/`, 'PATCH');
+      const response = await apiRequest(`${Labbaseurl}approve_investigation/${barcode}/`, 'PATCH');
       if (response.success) {
         setOphthalmology((prev) =>
           prev.map((op) => (op.barcode === barcode ? { ...op, status: "approved" } : op))

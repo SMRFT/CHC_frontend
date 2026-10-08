@@ -482,6 +482,36 @@ const hasVitals = (emp) => {
   );
 };
 
+const isTestCompleted = (emp, bt, testResults) => {
+  if (!emp) return false;
+  if (String(bt.test_id || "").toUpperCase() === "CHCT001") {
+    let ophth = emp.CHCT001 || emp.visual_acuity;
+    if (typeof ophth === "string") {
+      try {
+        ophth = JSON.parse(ophth);
+      } catch (e) {
+        ophth = null;
+      }
+    }
+    if (!ophth) return false;
+    const hasData = (
+      (ophth.distance?.right && String(ophth.distance.right).trim() !== "") ||
+      (ophth.distance?.left && String(ophth.distance.left).trim() !== "") ||
+      (ophth.nearVision?.right && String(ophth.nearVision.right).trim() !== "") ||
+      (ophth.nearVision?.left && String(ophth.nearVision.left).trim() !== "") ||
+      (ophth.colourVision?.right && String(ophth.colourVision.right).trim() !== "") ||
+      (ophth.colourVision?.left && String(ophth.colourVision.left).trim() !== "") ||
+      (ophth.ocularmovement?.right && String(ophth.ocularmovement.right).trim() !== "") ||
+      (ophth.ocularmovement?.left && String(ophth.ocularmovement.left).trim() !== "") ||
+      (ophth.complaints && String(ophth.complaints).trim() !== "") ||
+      (ophth.remarks && String(ophth.remarks).trim() !== "")
+    );
+    return !!hasData;
+  }
+  const saved = testResults ? testResults.find(t => String(t.test_id) === String(bt.test_id)) : null;
+  return saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false;
+};
+
 const SimpleSpinner = styled.div`
   width: 24px;
   height: 24px;
@@ -699,13 +729,13 @@ export default function Investigation() {
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
       const testResults = emp.test_results || []
 
-      const pendingList = chcBillable.filter(bt => {
-        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-        return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
-      })
+      const pendingList = chcBillable.filter(bt => !isTestCompleted(emp, bt, testResults))
 
       const overallApproved = pendingList.length === 0
       const hasNoFiles = chcBillable.every(bt => {
+        if (String(bt.test_id || "").toUpperCase() === "CHCT001") {
+          return true; // Ophthalmology typically doesn't have files
+        }
         const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
         return saved ? (saved.files || []).length === 0 : true
       })
@@ -745,8 +775,7 @@ export default function Investigation() {
       const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
       if (!bt) return false
       
-      const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-      const isCompleted = saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false
+      const isCompleted = isTestCompleted(emp, bt, testResults)
       return !isCompleted
     })
   }, [filteredEmployeesForStats, pendingTestFilter])
@@ -770,13 +799,9 @@ export default function Investigation() {
           }
           stats[testName].total += 1
           
-          // Check if there is a saved result for this test
-          const saved = results.find(t => String(t.test_id) === String(bt.test_id))
-          if (saved) {
-            const isDone = bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true
-            if (isDone) {
-              stats[testName].completed += 1
-            }
+          const isDone = isTestCompleted(emp, bt, results)
+          if (isDone) {
+            stats[testName].completed += 1
           }
         }
       })
@@ -1072,7 +1097,7 @@ export default function Investigation() {
             complaints: "",
             remarks: "",
           };
-          const savedVA = parseJson(selectedEmployee.visual_acuity, defaultVA);
+          const savedVA = parseJson(selectedEmployee.CHCT001 || selectedEmployee.visual_acuity, defaultVA);
           const mergedVA = { ...defaultVA };
           Object.keys(defaultVA).forEach(key => {
             if (savedVA && savedVA[key]) {
@@ -1694,10 +1719,7 @@ export default function Investigation() {
                   const billable = emp.billing_testdetails || []
                   const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
                   const results = emp.test_results || []
-                  const pendingTests = chcBillable.filter(bt => {
-                    const saved = results.find(t => String(t.test_id) === String(bt.test_id))
-                    return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
-                  })
+                  const pendingTests = chcBillable.filter(bt => !isTestCompleted(emp, bt, results))
 
                   return (
                     <TableRow key={emp.barcode || emp.employee_id} style={{ background: hasVitals(emp) ? "#e6ffe6" : "inherit" }}>
