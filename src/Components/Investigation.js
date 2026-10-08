@@ -702,7 +702,7 @@ export default function Investigation() {
   const uniqueCHCTests = useMemo(() => {
     const testNames = new Set()
     employees.forEach(emp => {
-      const results = emp.test_results || []
+      const results = emp.test_results || emp.test_results_saved || []
       results.forEach(t => {
         if (t.test_name) {
           testNames.add(t.test_name)
@@ -727,7 +727,7 @@ export default function Investigation() {
       // Overall status filter (check if ALL tests are complete)
       const billable = emp.billing_testdetails || []
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
-      const testResults = emp.test_results || []
+      const testResults = emp.test_results || emp.test_results_saved || []
 
       const pendingList = chcBillable.filter(bt => !isTestCompleted(emp, bt, testResults))
 
@@ -770,7 +770,7 @@ export default function Investigation() {
     return filteredEmployeesForStats.filter((emp) => {
       const billable = emp.billing_testdetails || []
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
-      const testResults = emp.test_results || []
+      const testResults = emp.test_results || emp.test_results_saved || []
 
       const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
       if (!bt) return false
@@ -789,7 +789,7 @@ export default function Investigation() {
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
       
       // Get the saved test results if they exist
-      const results = emp.test_results || []
+      const results = emp.test_results || emp.test_results_saved || []
       
       chcBillable.forEach(bt => {
         const testName = bt.test_name || bt.testname
@@ -956,7 +956,32 @@ export default function Investigation() {
         const merged = employeesData.map((emp) => {
           // Improved matching: use barcode if available, else fallback to employee_id
           const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
-          return inv ? { ...emp, ...inv } : emp
+          if (inv) {
+            // Merge dynamic fields: emp.dynamic_fields (from current billing/package) is ground truth
+            const empDyn = (emp.dynamic_fields && emp.dynamic_fields.length > 0) ? emp.dynamic_fields : (inv.dynamic_fields || [])
+            const invDyn = inv.dynamic_fields || []
+            const mergedDynamicFields = empDyn.map((baseField) => {
+              const fid = String(baseField.field_id || "")
+              const savedF = invDyn.find((sf) => String(sf.field_id || "") === fid)
+              if (savedF && savedF.field_values && savedF.field_values.length > 0) {
+                return { ...baseField, field_values: savedF.field_values }
+              }
+              return baseField
+            })
+
+            return {
+              ...emp,
+              status: inv.status || emp.status || "pending",
+              patient_history: inv.patient_history || emp.patient_history || "",
+              vitals: (inv.vitals && Object.keys(inv.vitals).length > 0) ? inv.vitals : emp.vitals,
+              test_results: (inv.test_results && inv.test_results.length > 0) ? inv.test_results : (emp.test_results || emp.test_results_saved || []),
+              test_results_saved: (inv.test_results_saved && inv.test_results_saved.length > 0) ? inv.test_results_saved : (emp.test_results_saved || emp.test_results || []),
+              dynamic_fields: mergedDynamicFields,
+              visual_acuity: inv.visual_acuity || emp.visual_acuity,
+              CHCT001: inv.CHCT001 || emp.CHCT001,
+            }
+          }
+          return emp
         })
 
         setEmployees(merged)
@@ -1035,8 +1060,52 @@ export default function Investigation() {
         return val || defaultVal
       }
 
+      // Safe normalizer for dynamic investigation fields
+      const normalizeDynamicFields = (rawFields) => {
+        if (!rawFields) return []
+        let fields = rawFields
+        if (typeof fields === "string") {
+          try { fields = JSON.parse(fields) } catch (e) { return [] }
+        }
+        if (!Array.isArray(fields)) return []
+
+        return fields.map((f, idx) => {
+          if (!f) return null
+          if (typeof f === "string") {
+            return { field_id: `DY_${idx}`, field_name: f, field_values: [] }
+          }
+          let fValues = f.field_values || []
+          if (typeof fValues === "string") {
+            try { fValues = JSON.parse(fValues) } catch (e) { fValues = [] }
+          }
+          if (!Array.isArray(fValues)) fValues = []
+
+          const normValues = fValues.map((v, vIdx) => {
+            if (typeof v === "string") {
+              return { key: v, value: "" }
+            }
+            if (v && typeof v === "object") {
+              if ("key" in v) {
+                return { key: String(v.key || ""), value: v.value !== undefined && v.value !== null ? String(v.value) : "" }
+              }
+              const entries = Object.entries(v)
+              if (entries.length > 0) {
+                return { key: String(entries[0][0]), value: entries[0][1] !== undefined && entries[0][1] !== null ? String(entries[0][1]) : "" }
+              }
+            }
+            return { key: `Field ${vIdx + 1}`, value: "" }
+          })
+
+          return {
+            field_id: f.field_id || `DY_${idx}`,
+            field_name: f.field_name || `Dynamic Field ${idx + 1}`,
+            field_values: normValues
+          }
+        }).filter(Boolean)
+      }
+
       // Build the test_results array for the form
-      let savedTests = parseJson(selectedEmployee.test_results, [])
+      let savedTests = parseJson(selectedEmployee.test_results || selectedEmployee.test_results_saved, [])
       if (!Array.isArray(savedTests)) savedTests = []
 
       const billableTests = selectedEmployee.billing_testdetails || []
@@ -1072,12 +1141,37 @@ export default function Investigation() {
             results: saved && saved.results
               ? { ...saved.results, report: reportValue }
               : { report: reportValue },
-            files: saved ? saved.files : [],
+            files: saved ? (saved.files || []) : [],
             notes: saved
-              ? saved.notes
+              ? (saved.notes || "")
               : (bt.notes || "") // Use master note template if new
           }
         })
+
+      // Include any saved tests that weren't in billableTests (e.g. if billing_testdetails was empty)
+      savedTests.forEach((st) => {
+        const alreadyAdded = activeTests.some((at) => String(at.test_id) === String(st.test_id));
+        if (!alreadyAdded) {
+          let reportValue = "";
+          if (st.results && typeof st.results.report === "string") {
+            reportValue = st.results.report;
+          } else if (typeof st.report === "string") {
+            reportValue = st.report;
+          }
+
+          activeTests.push({
+            test_id: st.test_id,
+            test_name: st.test_name || st.testname,
+            is_fileuploaded: st.is_fileuploaded !== undefined ? st.is_fileuploaded : true,
+            is_notes: st.is_notes !== undefined ? st.is_notes : true,
+            is_report: st.is_report !== undefined ? st.is_report : true,
+            is_active: st.is_active !== undefined ? st.is_active : true,
+            results: st.results ? { ...st.results, report: reportValue } : { report: reportValue },
+            files: st.files || [],
+            notes: st.notes || ""
+          });
+        }
+      });
 
       setForm((prev) => ({
         ...prev,
@@ -1111,12 +1205,26 @@ export default function Investigation() {
           return mergedVA;
         })(),
         test_results: activeTests || [],
-        dynamic_fields: parseJson(selectedEmployee.dynamic_fields, []),
+        dynamic_fields: normalizeDynamicFields(selectedEmployee.dynamic_fields),
         status: selectedEmployee.status || "pending"
       }))
     }
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleDynamicFieldValueChange = (fieldIdx, valIdx, keyName, newValue) => {
+    setForm((prev) => {
+      const nextFields = (prev.dynamic_fields || []).map((f, fI) => {
+        if (fI !== fieldIdx) return f
+        const nextVals = (f.field_values || []).map((v, vI) => {
+          if (vI !== valIdx) return v
+          return { key: keyName, value: newValue }
+        })
+        return { ...f, field_values: nextVals }
+      })
+      return { ...prev, dynamic_fields: nextFields }
+    })
   }
 
   const handleBackToList = () => {
@@ -1718,7 +1826,7 @@ export default function Investigation() {
                 filteredEmployees.map((emp, index) => {
                   const billable = emp.billing_testdetails || []
                   const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
-                  const results = emp.test_results || []
+                  const results = emp.test_results || emp.test_results_saved || []
                   const pendingTests = chcBillable.filter(bt => !isTestCompleted(emp, bt, results))
 
                   return (
@@ -1866,31 +1974,22 @@ export default function Investigation() {
               <div style={{ marginTop: '25px', marginBottom: '25px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
                 <h3 style={{ color: '#3F72AF', marginBottom: '20px', textTransform: 'uppercase' }}>Additional Investigation Fields</h3>
                 {form.dynamic_fields.map((field, fIdx) => (
-                  <div key={field.field_id} style={{ marginBottom: '20px' }}>
-                    <h4 style={{ color: '#4A5568', marginBottom: '10px', fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>{field.field_name}</h4>
+                  <div key={field.field_id || fIdx} style={{ marginBottom: '20px' }}>
+                    <h4 style={{ color: '#4A5568', marginBottom: '10px', fontSize: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>
+                      {field.field_name}
+                    </h4>
                     <TwoColGrid>
                       {(field.field_values || []).map((valObj, vIdx) => {
-                        // Support both formats: {key: val} and {key: "...", value: "..."}
-                        const key = valObj.key || Object.keys(valObj)[0];
-                        const value = valObj.value !== undefined ? valObj.value : valObj[key];
+                        const key = valObj.key || `Field ${vIdx + 1}`;
+                        const value = valObj.value || "";
                         
                         return (
                           <Field key={vIdx}>
                             <Label style={{ fontSize: '14px', color: '#718096', fontWeight: '600' }}>{key}</Label>
                             <Input 
-                              value={value || ""}
+                              value={value}
                               placeholder={`Enter ${key}...`}
-                              onChange={(e) => {
-                                const newFields = [...form.dynamic_fields];
-                                const newValObj = {...newFields[fIdx].field_values[vIdx]};
-                                if (newValObj.value !== undefined) {
-                                  newValObj.value = e.target.value;
-                                } else {
-                                  newValObj[key] = e.target.value;
-                                }
-                                newFields[fIdx].field_values[vIdx] = newValObj;
-                                setForm({...form, dynamic_fields: newFields});
-                              }}
+                              onChange={(e) => handleDynamicFieldValueChange(fIdx, vIdx, key, e.target.value)}
                               disabled={form.status === 'approved'}
                             />
                           </Field>
