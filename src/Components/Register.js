@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
+import apiRequest from './apiRequest';
 
 /* ===== Background visuals ===== */
 const float = keyframes`
@@ -230,8 +230,8 @@ const Register = () => {
   React.useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get(`${Labbaseurl}companies/`);
-        const companyList = Array.isArray(res.data) ? res.data : (res.data.data || []);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        const companyList = res.success ? (Array.isArray(res.data) ? res.data : (res.data.data || [])) : [];
         // Only keep active companies
         setCompanies(companyList.filter(c => c.is_active));
       } catch (err) {
@@ -268,12 +268,17 @@ const Register = () => {
         confirmPassword: formData.confirmPassword,
         company_id: formData.company_id
       };
-      await axios.post(`${Labbaseurl}registration/`, requestData);
-      setMessage('Registration successful!');
-      setSuccess(true);
-      setFormData({ name: '', role: '', password: '', confirmPassword: '' });
+      const res = await apiRequest(`${Labbaseurl}registration/`, 'POST', requestData);
+      if (res.success) {
+        setMessage('Registration successful!');
+        setSuccess(true);
+        setFormData({ name: '', role: '', password: '', confirmPassword: '' });
+      } else {
+        setMessage(res.error || 'Registration failed. Please try again.');
+        setSuccess(false);
+      }
     } catch (error) {
-      setMessage(error?.response?.data?.error || 'Registration failed. Please try again.');
+      setMessage(error?.message || 'Registration failed. Please try again.');
       setSuccess(false);
     } finally {
       setLoading(false);

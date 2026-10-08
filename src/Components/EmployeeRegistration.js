@@ -5,6 +5,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import JsBarcode from "jsbarcode";
+import apiRequest from "./apiRequest";
 
 // 🎨 Styled Components
 // Styled components (keeping the same styles from the original)
@@ -488,10 +489,9 @@ const EmployeeRegistration = () => {
 
   const fetchEmployeeTypes = async () => {
     try {
-      const res = await fetch(`${Labbaseurl}get_employee_types/`);
-      const data = await res.json();
-      if (data.status === "success") {
-        setDynamicEmployeeTypes(data.data || []);
+      const res = await apiRequest(`${Labbaseurl}get_employee_types/`, "GET");
+      if (res.success && res.data.status === "success") {
+        setDynamicEmployeeTypes(res.data.data || []);
       }
     } catch (err) {
       console.error("Error fetching employee types:", err);
@@ -506,19 +506,14 @@ const EmployeeRegistration = () => {
   const handleCreateEmployeeType = async () => {
      if (!newTypeName.trim()) return toast.warning("Please enter a type name.");
      try {
-       const res = await fetch(`${Labbaseurl}create_employee_type/`, {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ name: newTypeName.trim() })
-       });
-       const data = await res.json();
-       if (data.status === "success") {
+       const res = await apiRequest(`${Labbaseurl}create_employee_type/`, "POST", { name: newTypeName.trim() });
+       if (res.success && res.data.status === "success") {
          toast.success("Employee Type created!");
          setNewTypeName("");
          setShowTypeModal(false);
          fetchEmployeeTypes(); // Refresh suggestions
        } else {
-         toast.error(data.message || "Failed to create type.");
+         toast.error((res.data && res.data.message) || res.error || "Failed to create type.");
        }
      } catch (err) {
        console.error("Error creating type:", err);
@@ -534,14 +529,9 @@ const EmployeeRegistration = () => {
         if (selectedPkg && selectedPkg.investigations) {
           const tids = selectedPkg.investigations.map(inv => inv.test_id).filter(id => id);
           try {
-            const res = await fetch(`${Labbaseurl}get_test_details/`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ test_ids: tids })
-            });
-            const data = await res.json();
-            if (data.status === "success") {
-               const filteredTests = (data.data || []).filter(test => {
+            const res = await apiRequest(`${Labbaseurl}get_test_details/`, "POST", { test_ids: tids });
+            if (res.success && res.data.status === "success") {
+               const filteredTests = (res.data.data || []).filter(test => {
                   const name = (test.test_name || "").toLowerCase();
                   const container = (test.collection_container || "").toLowerCase();
                   return name !== "unknown" && container !== "n/a" && container !== "";
@@ -662,20 +652,24 @@ const EmployeeRegistration = () => {
     const fetchCompanies = async () => {
       setLoadingCompanies(true);
       try {
-        const res = await fetch(`${Labbaseurl}companies/`);
-        const data = await res.json();
-        setCompanies(data);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          const data = res.data;
+          setCompanies(data);
 
-        // ✅ Default selection logic
-        if (data && data.length === 1) {
-          const singleCompany = data[0];
-          setFormData(prev => ({
-            ...prev,
-            company_id: singleCompany.company_id,
-            company_name: singleCompany.company_name
-          }));
-          // Fetch packages for this single company immediately
-          fetchPackages(singleCompany.company_id);
+          // ✅ Default selection logic
+          if (data && data.length === 1) {
+            const singleCompany = data[0];
+            setFormData(prev => ({
+              ...prev,
+              company_id: singleCompany.company_id,
+              company_name: singleCompany.company_name
+            }));
+            // Fetch packages for this single company immediately
+            fetchPackages(singleCompany.company_id);
+          }
+        } else {
+          toast.error(res.error || "Failed to load companies");
         }
       } catch (err) {
         console.error("Error fetching companies:", err);
@@ -821,10 +815,9 @@ const EmployeeRegistration = () => {
   const fetchUnregisteredEmployees = async () => {
     setIsSearching(true);
     try {
-      const res = await fetch(`${Labbaseurl}get_unregistered_employees/?search=${unregisteredSearch}`);
-      const data = await res.json();
-      if (data.status === "success") {
-        setUnregisteredResults(data.data);
+      const res = await apiRequest(`${Labbaseurl}get_unregistered_employees/?search=${unregisteredSearch}`, "GET");
+      if (res.success && res.data.status === "success") {
+        setUnregisteredResults(res.data.data);
       }
     } catch (err) {
       console.error("Error searching employees:", err);
@@ -876,10 +869,9 @@ const EmployeeRegistration = () => {
   // Fetch next offsite barcode when mode is switched to Offsite
   const fetchNextBarcode = async () => {
     try {
-      const res = await fetch(`${Labbaseurl}get_next_offsite_barcode/`);
-      const data = await res.json();
-      if (data.status === "success") {
-        setFormData(prev => ({ ...prev, barcode: data.barcode }));
+      const res = await apiRequest(`${Labbaseurl}get_next_offsite_barcode/`, "GET");
+      if (res.success && res.data.status === "success") {
+        setFormData(prev => ({ ...prev, barcode: res.data.barcode }));
       }
     } catch (err) {
       console.error("Error fetching next barcode:", err);
@@ -904,10 +896,10 @@ const EmployeeRegistration = () => {
     }
     setLoadingPackages(true);
     try {
-      const res = await fetch(`${Labbaseurl}get_packages/?company_id=${companyId}`);
-      const data = await res.json();
+      const res = await apiRequest(`${Labbaseurl}get_packages/?company_id=${companyId}`, "GET");
       
-      if (data.status === "success") {
+      if (res.success && res.data.status === "success") {
+        const data = res.data;
         setPackages(data.data);
 
         // ✅ Auto-select if only one package exists
@@ -1041,15 +1033,10 @@ const EmployeeRegistration = () => {
     };
 
     try {
-      const res = await fetch(`${Labbaseurl}chc_empregisterandbilling/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await apiRequest(`${Labbaseurl}chc_empregisterandbilling/`, "POST", payload);
+      const data = res.data || {};
 
-      const data = await res.json();
-
-      if (res.ok && data.status === "success") {
+      if (res.success && data.status === "success") {
         toast.success(`Employee registered successfully! (${formData.registration_mode} Mode)`);
         
         // --- PRINT BARCODE FOR OFFSITE ---

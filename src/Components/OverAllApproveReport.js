@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axios from "axios";
 import styled, { ThemeProvider, createGlobalStyle, keyframes } from "styled-components";
+import apiRequest from "./apiRequest";
 import {
   ResponsiveContainer,
   AreaChart, Area,
@@ -819,8 +819,8 @@ export default function OverAllApproveReport() {
   const fetchCompanies = async () => {
     try {
       const url = `${getBaseUrl()}companies/`;
-      const res = await axios.get(url);
-      setCompanies(res.data || []);
+      const res = await apiRequest(url, "GET");
+      setCompanies(res.success ? res.data : []);
     } catch (e) {
       console.error("Failed to fetch companies:", e);
     }
@@ -843,12 +843,12 @@ export default function OverAllApproveReport() {
       };
 
       const [dashRes, repRes] = await Promise.all([
-        axios.get(`${getBaseUrl()}get_approval_dashboard/`, { params }),
-        axios.get(`${getBaseUrl()}get_approval_report/`, { params })
+        apiRequest(`${getBaseUrl()}get_approval_dashboard/`, 'GET', null, {}, { params }),
+        apiRequest(`${getBaseUrl()}get_approval_report/`, 'GET', null, {}, { params })
       ]);
 
-      setDashboardData(dashRes.data || { total_approved: 0, by_doctor: [], by_company: [], trend: [] });
-      if (repRes.data && repRes.data.status === "success") {
+      setDashboardData((dashRes.success ? dashRes.data : null) || { total_approved: 0, by_doctor: [], by_company: [], trend: [] });
+      if (repRes.success && repRes.data && repRes.data.status === "success") {
         setReportData(repRes.data.data || []);
       }
     } catch (e) {

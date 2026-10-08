@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import styled from "styled-components";
+import apiRequest from "./apiRequest";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { toast } from "react-toastify";
 // ===== Enhanced Styled Components =====
@@ -511,8 +511,8 @@ const Packagecreation = () => {
   // Fetch tests
   const fetchTests = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}get_core_test/`);
-      if (res.data.status === "success") {
+      const res = await apiRequest(`${Labbaseurl}get_core_test/`, "GET");
+      if (res.success && res.data.status === "success") {
         setTests(res.data.tests);
       }
     } catch (err) {
@@ -527,8 +527,10 @@ const Packagecreation = () => {
   // Fetch companies
   const fetchCompanies = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}companies/`);
-      setCompanies(res.data);
+      const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+      if (res.success) {
+        setCompanies(res.data);
+      }
     } catch (err) {
       console.error("Error fetching companies:", err);
     }
@@ -540,8 +542,10 @@ const Packagecreation = () => {
 
   const fetchDynamicFields = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}dynamic_fields/`);
-      setAvailableDynamicFields(res.data);
+      const res = await apiRequest(`${Labbaseurl}dynamic_fields/`, "GET");
+      if (res.success) {
+        setAvailableDynamicFields(res.data);
+      }
     } catch (err) {
       console.error("Error fetching dynamic fields:", err);
     }
@@ -549,8 +553,10 @@ const Packagecreation = () => {
 
   const fetchAddons = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}addon_investigations/`);
-      setAvailableAddons(res.data);
+      const res = await apiRequest(`${Labbaseurl}addon_investigations/`, "GET");
+      if (res.success) {
+        setAvailableAddons(res.data);
+      }
     } catch (err) {
       console.error("Error fetching addons:", err);
     }
@@ -564,8 +570,10 @@ const Packagecreation = () => {
   const fetchAllCompanies = async () => {
     setLoadingAll(true);
     try {
-      const res = await axios.get(`${Labbaseurl}companies/?managed=true`);
-      setAllCompanies(res.data);
+      const res = await apiRequest(`${Labbaseurl}companies/?managed=true`, "GET");
+      if (res.success) {
+        setAllCompanies(res.data);
+      }
     } catch (err) {
       console.error("Error fetching all companies:", err);
     } finally {
@@ -578,13 +586,11 @@ const Packagecreation = () => {
     setLoadingPackages(true);
     console.log("Calling Fetch: ", `${Labbaseurl}create_package/?company_id=${companyId}`);
     try {
-      const response = await fetch(`${Labbaseurl}create_package/?company_id=${companyId}`);
-      const data = await response.json();
-      console.log("API Response Data:", data);
-      if (data.status === "success") {
-        setCompanyPackages(data.data || []);
+      const res = await apiRequest(`${Labbaseurl}create_package/?company_id=${companyId}`, "GET");
+      if (res.success && res.data.status === "success") {
+        setCompanyPackages(res.data.data || []);
       } else {
-        console.error("API Fetch Failed with: ", data);
+        console.error("API Fetch Failed with: ", res);
       }
     } catch (err) {
       console.error("Error in fetchCompanyPackages:", err);
@@ -595,24 +601,19 @@ const Packagecreation = () => {
    
   const handleUpdatePackage = async (pId, updatedName, updatedGender, updatedExtra) => {
     try {
-      const response = await fetch(`${Labbaseurl}create_package/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          package_id: pId,
-          company_id: selectedCompanyId,
-          package_name: updatedName,
-          gender: updatedGender,
-          extra_barcode: updatedExtra
-        })
+      const res = await apiRequest(`${Labbaseurl}create_package/`, 'PATCH', {
+        package_id: pId,
+        company_id: selectedCompanyId,
+        package_name: updatedName,
+        gender: updatedGender,
+        extra_barcode: updatedExtra
       });
-      const data = await response.json();
-      if (data.status === "success") {
+      if (res.success && res.data.status === "success") {
         toast.success("Package updated successfully!");
         fetchCompanyPackages(selectedCompanyId);
         setEditingPackageId(null);
       } else {
-        toast.error(data.message || "Update failed");
+        toast.error(res.error || (res.data && res.data.message) || "Update failed");
       }
     } catch (err) {
       console.error("Patch Error:", err);
@@ -622,10 +623,10 @@ const Packagecreation = () => {
 
   const toggleCompanyStatus = async (company_id, currentStatus) => {
     try {
-      const res = await axios.patch(`${Labbaseurl}companies/${company_id}/toggle/`, {
+      const res = await apiRequest(`${Labbaseurl}companies/${company_id}/toggle/`, 'PATCH', {
         is_active: !currentStatus
       });
-      if (res.status === 200) {
+      if (res.success) {
         // Refresh local lists
         fetchAllCompanies();
         fetchCompanies();
@@ -638,8 +639,12 @@ const Packagecreation = () => {
   // Open create company modal and fetch next ID
   const openCompanyModal = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}companies/next-id/`);
-      setNewCompany(prev => ({ ...prev, company_id: res.data.company_id }));
+      const res = await apiRequest(`${Labbaseurl}companies/next-id/`, "GET");
+      if (res.success) {
+        setNewCompany(prev => ({ ...prev, company_id: res.data.company_id }));
+      } else {
+        setNewCompany(prev => ({ ...prev, company_id: "CHC001" }));
+      }
     } catch (err) {
       setNewCompany(prev => ({ ...prev, company_id: "CHC001" }));
     }
@@ -658,16 +663,18 @@ const Packagecreation = () => {
     }
     setSavingCompany(true);
     try {
-      const res = await axios.post(`${Labbaseurl}companies/`, newCompany);
-      if (res.status === 201) {
+      const res = await apiRequest(`${Labbaseurl}companies/`, 'POST', newCompany);
+      if (res.success) {
         fetchCompanies();
         setSelectedCompanyId(res.data.company_id);
         setShowCompanyModal(false);
         setNewCompany({ company_id: "", company_name: "", address: "", contact_number: "", contact_email: "", industry: "", website: "", established_year: "" });
         alert(`Company created! ID: ${res.data.company_id}`);
+      } else {
+        alert("Failed to create company: " + (res.error || "Unknown error"));
       }
     } catch (err) {
-      alert("Failed to create company: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      alert("Failed to create company: " + err.message);
     } finally {
       setSavingCompany(false);
     }
@@ -676,18 +683,22 @@ const Packagecreation = () => {
   // CHC Test Modal Logic
   const openTestModal = async () => {
     try {
-      const res = await axios.get(`${Labbaseurl}get_next_chc_test_id/`);
-      setNewTest(prev => ({
-        ...prev,
-        test_id: res.data.test_id,
-        test_name: "",
-        test_price: "",
-        is_fileuploaded: false,
-        is_notes: false,
-        is_report: false,
-        notes: "",
-        report: "",
-      }));
+      const res = await apiRequest(`${Labbaseurl}get_next_chc_test_id/`, "GET");
+      if (res.success) {
+        setNewTest(prev => ({
+          ...prev,
+          test_id: res.data.test_id,
+          test_name: "",
+          test_price: "",
+          is_fileuploaded: false,
+          is_notes: false,
+          is_report: false,
+          notes: "",
+          report: "",
+        }));
+      } else {
+        setNewTest(prev => ({ ...prev, test_id: "CHC001" }));
+      }
     } catch (err) {
       setNewTest(prev => ({ ...prev, test_id: "CHC001" }));
     }
@@ -709,14 +720,16 @@ const Packagecreation = () => {
     }
     setSavingTest(true);
     try {
-      const res = await axios.post(`${Labbaseurl}create_chc_test/`, newTest);
-      if (res.status === 201) {
+      const res = await apiRequest(`${Labbaseurl}create_chc_test/`, 'POST', newTest);
+      if (res.success) {
         fetchTests();
         setShowTestModal(false);
         alert(`Test created! ID: ${res.data.test_id}`);
+      } else {
+        alert("Failed to create test: " + (res.error || "Unknown error"));
       }
     } catch (err) {
-      alert("Failed to create test: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+      alert("Failed to create test: " + err.message);
     } finally {
       setSavingTest(false);
     }
@@ -791,21 +804,16 @@ const Packagecreation = () => {
     };
 
     try {
-      const response = await fetch(`${Labbaseurl}create_package/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (response.ok && data.status === "success") {
-        alert(`Package created! ID: ${data.data.package_id}`);
+      const res = await apiRequest(`${Labbaseurl}create_package/`, 'POST', payload);
+      if (res.success && res.data.status === "success") {
+        alert(`Package created! ID: ${res.data.package_id}`);
         setTableData([]);
         setTotalAmount("");
         setSelectedTest("");
         setPackageName("");
         setSelectedCompanyId("");
       } else {
-        alert("Error: " + (data.message || "Failed to create package"));
+        alert("Error: " + (res.error || (res.data && res.data.message) || "Failed to create package"));
       }
     } catch (err) {
       console.error("Submit error:", err);
@@ -1466,13 +1474,21 @@ const Packagecreation = () => {
               <CancelButton onClick={() => setShowDynamicFieldModal(false)}>Cancel</CancelButton>
               <SubmitButton onClick={async () => {
                 try {
-                  const idRes = await axios.get(`${Labbaseurl}dynamic_fields/next-id/`);
-                  const payload = { ...newDynamicField, field_id: idRes.data.field_id };
-                  await axios.post(`${Labbaseurl}dynamic_fields/`, payload);
-                  fetchDynamicFields();
-                  setShowDynamicFieldModal(false);
-                  setNewDynamicField({ field_id: "", field_name: "", field_values: [{ key: "", value: "" }], is_active: true });
-                  toast.success("Dynamic field created!");
+                  const idRes = await apiRequest(`${Labbaseurl}dynamic_fields/next-id/`, "GET");
+                  if (idRes.success) {
+                    const payload = { ...newDynamicField, field_id: idRes.data.field_id };
+                    const postRes = await apiRequest(`${Labbaseurl}dynamic_fields/`, 'POST', payload);
+                    if (postRes.success) {
+                      fetchDynamicFields();
+                      setShowDynamicFieldModal(false);
+                      setNewDynamicField({ field_id: "", field_name: "", field_values: [{ key: "", value: "" }], is_active: true });
+                      toast.success("Dynamic field created!");
+                    } else {
+                      toast.error("Failed to create dynamic field");
+                    }
+                  } else {
+                    toast.error("Failed to get next ID");
+                  }
                 } catch (err) {
                   toast.error("Failed to create dynamic field");
                 }
@@ -1504,13 +1520,21 @@ const Packagecreation = () => {
               <CancelButton onClick={() => setShowAddonModal(false)}>Cancel</CancelButton>
               <SubmitButton onClick={async () => {
                 try {
-                  const idRes = await axios.get(`${Labbaseurl}addon_investigations/next-id/`);
-                  const payload = { ...newAddon, test_id: idRes.data.test_id };
-                  await axios.post(`${Labbaseurl}addon_investigations/`, payload);
-                  fetchAddons();
-                  setShowAddonModal(false);
-                  setNewAddon({ test_id: "", test_name: "", test_price: "", is_active: true });
-                  toast.success("Add-on created!");
+                  const idRes = await apiRequest(`${Labbaseurl}addon_investigations/next-id/`, "GET");
+                  if (idRes.success) {
+                    const payload = { ...newAddon, test_id: idRes.data.test_id };
+                    const postRes = await apiRequest(`${Labbaseurl}addon_investigations/`, 'POST', payload);
+                    if (postRes.success) {
+                      fetchAddons();
+                      setShowAddonModal(false);
+                      setNewAddon({ test_id: "", test_name: "", test_price: "", is_active: true });
+                      toast.success("Add-on created!");
+                    } else {
+                      toast.error("Failed to create add-on");
+                    }
+                  } else {
+                    toast.error("Failed to get next ID");
+                  }
                 } catch (err) {
                   toast.error("Failed to create add-on");
                 }

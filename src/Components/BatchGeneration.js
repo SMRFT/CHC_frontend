@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import styled from "styled-components"
+import apiRequest from "./apiRequest"
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
@@ -176,22 +177,36 @@ const BatchGeneration = () => {
 
   // ── Load packages for resolution ──────────────────────────────────────────
   useEffect(() => {
-    if (filters.company_id) {
-      fetch(`${Labbaseurl}create_package/?company_id=${filters.company_id}`)
-        .then(r => r.json())
-        .then(data => setPackages(Array.isArray(data) ? data : (data.data || [])))
-        .catch(console.error);
-    } else {
-      setPackages([]);
-    }
+    const loadPackages = async () => {
+      if (filters.company_id) {
+        try {
+          const res = await apiRequest(`${Labbaseurl}create_package/?company_id=${filters.company_id}`, "GET");
+          if (res.success) {
+            setPackages(Array.isArray(res.data) ? res.data : (res.data.data || []));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setPackages([]);
+      }
+    };
+    loadPackages();
   }, [filters.company_id, Labbaseurl]);
 
   // ── Load companies ─────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${Labbaseurl}companies/`)
-      .then(r => r.json())
-      .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error);
+    const fetchCompanies = async () => {
+      try {
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCompanies();
 
     // Initial fetch
     fetchTransferredSamples();
@@ -212,14 +227,14 @@ const BatchGeneration = () => {
       })
       if (filters.company_id) queryParams.append("company_id", filters.company_id)
 
-      const response = await fetch(`${Labbaseurl}samples/transferred/?${queryParams.toString()}`)
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.error || "Failed to fetch transferred samples.")
-      }
-      const data = await response.json()
-      if (data.transferred_samples && Array.isArray(data.transferred_samples)) {
-        setTransferredSamples(data.transferred_samples)
+      const response = await apiRequest(`${Labbaseurl}samples/transferred/?${queryParams.toString()}`, "GET")
+      if (response.success) {
+        const data = response.data
+        if (data.transferred_samples && Array.isArray(data.transferred_samples)) {
+          setTransferredSamples(data.transferred_samples)
+        }
+      } else {
+        throw new Error(response.error || "Failed to fetch transferred samples.")
       }
     } catch (error) {
       setSampleError(error.message)
@@ -263,23 +278,19 @@ const BatchGeneration = () => {
         company_name: selectedCompany?.company_name || (transferredSamples.length > 0 ? transferredSamples[0].company_name : ""),
       }
 
-      const response = await fetch(`${Labbaseurl}batch/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || JSON.stringify(err) || "Failed to create batch.")
+      const response = await apiRequest(`${Labbaseurl}batch/`, "POST", payload)
+      if (response.success) {
+        const data = response.data
+        setBatchSuccess("Batch created successfully!")
+        setCreatedBatchData({
+          ...data,
+          samples: transferredSamples,
+          company_name: selectedCompany?.company_name || data.company_name || "CHC",
+        })
+        setTransferredSamples([])
+      } else {
+        throw new Error(response.error || "Failed to create batch.")
       }
-      const data = await response.json()
-      setBatchSuccess("Batch created successfully!")
-      setCreatedBatchData({
-        ...data,
-        samples: transferredSamples,
-        company_name: selectedCompany?.company_name || data.company_name || "CHC",
-      })
-      setTransferredSamples([])
     } catch (error) {
       setBatchError(error.message)
     } finally {

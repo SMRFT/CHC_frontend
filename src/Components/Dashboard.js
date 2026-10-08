@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axios from "axios";
 import styled, { ThemeProvider, createGlobalStyle } from "styled-components";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from "recharts";
+
+import apiRequest from "./apiRequest";
 
 /* ============ Theme & Global Styles ============ */
 const lightTheme = {
@@ -487,26 +488,22 @@ const HealthDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const params = {};
-        if (role === "Company" && companyId) {
-          params.company_id = companyId;
-        }
+        const companyParam = (role === "Company" && companyId) ? `company_id=${companyId}` : "";
+        const urlParams = companyParam ? `?${companyParam}` : "";
 
         const [empRes, invRes, billRes] = await Promise.all([
-          axios.get(`${Labbaseurl}employees/`, { params }),
-          axios.get(`${Labbaseurl}investigations/`, { params }),
-          axios.get(`${Labbaseurl}billings/`, { params }),
+          apiRequest(`${Labbaseurl}employees/${urlParams}`, "GET"),
+          apiRequest(`${Labbaseurl}investigations/${urlParams}`, "GET"),
+          apiRequest(`${Labbaseurl}billings/${urlParams}`, "GET"),
         ]);
-        setEmployees(empRes.data || []);
-        setInvestigations(invRes.data || []);
-        setBillings(billRes.data || []);
+        setEmployees(empRes.success ? empRes.data : []);
+        setInvestigations(invRes.success ? invRes.data : []);
+        setBillings(billRes.success ? billRes.data : []);
 
         // Fetch Company Package Tests
         try {
-          const pkgRes = await axios.get(`${Labbaseurl}/_b_a_c_k_e_n_d/CHC/create_package/`, {
-            params: { company_id: companyId }
-          });
-          if (pkgRes.data && pkgRes.data.status === "success") {
+          const pkgRes = await apiRequest(`${Labbaseurl}create_package/${companyId ? "?company_id=" + companyId : ""}`, "GET");
+          if (pkgRes.success && pkgRes.data && pkgRes.data.status === "success") {
             // Flatten all tests from all packages
             const allTests = pkgRes.data.data.flatMap(pkg => pkg.investigations || []);
             setPackageTests(allTests);

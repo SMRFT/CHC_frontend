@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import styled from "styled-components"
+import apiRequest from "./apiRequest"
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
@@ -218,10 +219,17 @@ const SampleTransfer = () => {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
   useEffect(() => {
-    fetch(`${Labbaseurl}companies/`)
-      .then(r => r.json())
-      .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error);
+    const fetchCompanies = async () => {
+      try {
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCompanies();
     
     // Initial fetch
     fetchCollectedSamples();
@@ -249,8 +257,6 @@ const SampleTransfer = () => {
     setError("")
     setSuccess("")
 
-    // Made company optional
-
     try {
       const queryParams = new URLSearchParams({
         samplestatus: "Collected",
@@ -261,11 +267,12 @@ const SampleTransfer = () => {
       if (filters.employee_id) queryParams.append("employee_id", filters.employee_id)
       if (filters.barcode)     queryParams.append("barcode",     filters.barcode)
 
-      const response = await fetch(`${Labbaseurl}samples/?${queryParams}`)
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
-      setSamples(data.results || data)
+      const response = await apiRequest(`${Labbaseurl}samples/?${queryParams}`, "GET")
+      if (response.success) {
+        setSamples(response.data.results || response.data)
+      } else {
+        throw new Error(response.error || "Failed to fetch samples")
+      }
     } catch (err) {
       console.error("Error fetching collected samples:", err)
       setError(`Failed to fetch samples: ${err.message}`)
@@ -370,22 +377,18 @@ const SampleTransfer = () => {
         transferred_to: transferredTo,          // ← destination lab
       }
 
-      const response = await fetch(
+      const response = await apiRequest(
         `${Labbaseurl}samples/?company_id=${selectedSample.company_id}&barcode=${selectedSample.barcode}`,
-        {
-          method:  "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(payload),
-        }
+        "PATCH",
+        payload
       )
 
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.message || `HTTP error! status: ${response.status}`)
+      if (response.success) {
+        setSuccess(`Samples transferred to ${transferredTo} successfully!`)
+        setTimeout(() => { closeModal(); fetchCollectedSamples() }, 1500)
+      } else {
+        throw new Error(response.error || "Failed to transfer samples")
       }
-
-      setSuccess(`Samples transferred to ${transferredTo} successfully!`)
-      setTimeout(() => { closeModal(); fetchCollectedSamples() }, 1500)
     } catch (err) {
       console.error("Error transferring samples:", err)
       setError(`Failed to transfer: ${err.message}`)

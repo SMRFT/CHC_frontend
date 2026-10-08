@@ -6,7 +6,6 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "react-datepicker/dist/react-datepicker.css";
 import * as pdfjsLib from 'pdfjs-dist';
-import axios from "axios";
 import {
   Calendar,
   Search,
@@ -444,9 +443,9 @@ const CHCReport = () => {
         url += `&company_id=${companyId}`;
       }
 
-      const response = await axios.get(url);
+      const response = await apiRequest(url);
 
-      if (response.status === 200) {
+      if (response.success && response.status === 200) {
         const patientData = response.data;
         setPatients(patientData);
         setFilteredPatients(patientData);

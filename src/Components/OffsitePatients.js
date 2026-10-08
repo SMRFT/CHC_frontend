@@ -5,7 +5,7 @@ import {
     Printer, Barcode as BarcodeIcon
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import axios from "axios";
+import apiRequest from "./apiRequest";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { toast, ToastContainer } from "react-toastify";
@@ -374,13 +374,12 @@ export default function OffsitePatients() {
                 to_date: endDate ? endDate.toISOString().split('T')[0] : null,
                 search: searchTerm
             };
-            const res = await axios.post(`${Labbaseurl}get_offsite_billings/`, payload);
-            if (res.data.status === "success") {
+            const res = await apiRequest(`${Labbaseurl}get_offsite_billings/`, 'POST', payload);
+            if (res.success && res.data.status === "success") {
                 setBillings(res.data.data || []);
             }
         } catch (err) {
             console.error("Fetch Error:", err);
-            // toast.error("Failed to load offsite patients"); // Optional: minimize noise if needed
         } finally {
             setLoading(false);
         }
@@ -441,14 +440,16 @@ export default function OffsitePatients() {
                 .map(t => t.test_id);
 
             if (testIds.length > 0) {
-                const res = await axios.post(`${Labbaseurl}get_test_details/`, { test_ids: testIds });
-                if (res.data.status === "success") {
+                const res = await apiRequest(`${Labbaseurl}get_test_details/`, 'POST', { test_ids: testIds });
+                if (res.success && res.data.status === "success") {
                     const filteredTests = (res.data.data || []).filter(test => {
                         const name = (test.test_name || "").toLowerCase();
                         const container = (test.collection_container || "").toLowerCase();
                         return name !== "unknown" && container !== "n/a";
                     });
                     setSelectedTests(filteredTests);
+                } else {
+                    toast.error(res.error || "Failed to fetch test details");
                 }
             } else {
                 setSelectedTests([]);

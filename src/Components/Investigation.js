@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import styled from "styled-components"
-import axios from "axios"
+import apiRequest from "./apiRequest"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { Printer, Edit2, AlertCircle, X } from "lucide-react"
@@ -482,6 +482,36 @@ const hasVitals = (emp) => {
   );
 };
 
+const isTestCompleted = (emp, bt, testResults) => {
+  if (!emp) return false;
+  if (String(bt.test_id || "").toUpperCase() === "CHCT001") {
+    let ophth = emp.CHCT001 || emp.visual_acuity;
+    if (typeof ophth === "string") {
+      try {
+        ophth = JSON.parse(ophth);
+      } catch (e) {
+        ophth = null;
+      }
+    }
+    if (!ophth) return false;
+    const hasData = (
+      (ophth.distance?.right && String(ophth.distance.right).trim() !== "") ||
+      (ophth.distance?.left && String(ophth.distance.left).trim() !== "") ||
+      (ophth.nearVision?.right && String(ophth.nearVision.right).trim() !== "") ||
+      (ophth.nearVision?.left && String(ophth.nearVision.left).trim() !== "") ||
+      (ophth.colourVision?.right && String(ophth.colourVision.right).trim() !== "") ||
+      (ophth.colourVision?.left && String(ophth.colourVision.left).trim() !== "") ||
+      (ophth.ocularmovement?.right && String(ophth.ocularmovement.right).trim() !== "") ||
+      (ophth.ocularmovement?.left && String(ophth.ocularmovement.left).trim() !== "") ||
+      (ophth.complaints && String(ophth.complaints).trim() !== "") ||
+      (ophth.remarks && String(ophth.remarks).trim() !== "")
+    );
+    return !!hasData;
+  }
+  const saved = testResults ? testResults.find(t => String(t.test_id) === String(bt.test_id)) : null;
+  return saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false;
+};
+
 const SimpleSpinner = styled.div`
   width: 24px;
   height: 24px;
@@ -562,8 +592,12 @@ export default function Investigation() {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await axios.get(`${Labbaseurl}companies/`);
-        setCompanies(Array.isArray(res.data) ? res.data : []);
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        } else {
+          showToast("Failed to load companies", "error");
+        }
       } catch (err) {
         console.error("Error fetching companies:", err);
         showToast("Failed to load companies", "error");
@@ -577,9 +611,13 @@ export default function Investigation() {
     if (bulkUploadCompanyId) {
       const fetchPackages = async () => {
         try {
-          const res = await axios.get(`${Labbaseurl}get_packages/?company_id=${bulkUploadCompanyId}`);
-          // The API returns an object { status: "success", data: [...] }
-          setPackages(res.data?.data || []);
+          const res = await apiRequest(`${Labbaseurl}get_packages/?company_id=${bulkUploadCompanyId}`, "GET");
+          if (res.success) {
+            // The API returns an object { status: "success", data: [...] }
+            setPackages(res.data?.data || []);
+          } else {
+            showToast("Failed to load packages", "error");
+          }
         } catch (err) {
           console.error("Error fetching packages:", err);
           showToast("Failed to load packages", "error");
@@ -626,17 +664,18 @@ export default function Investigation() {
     setBulkUploadProgress(0);
 
     try {
-      const response = await axios.post(`${Labbaseurl}bulk_upload_investigation_files/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
+      const response = await apiRequest(`${Labbaseurl}bulk_upload_investigation_files/`, 'POST', formData, {
+        'Content-Type': 'multipart/form-data'
+      }, {
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setBulkUploadProgress(percentCompleted);
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setBulkUploadProgress(percentCompleted);
+          }
         }
       });
 
-      if (response.status === 200) {
+      if (response.success) {
         showToast(`Bulk upload successful! ${response.data.results?.success || 0} files processed.`, "success");
         if (response.data.results?.failed > 0) {
           console.warn("Bulk upload errors:", response.data.results.errors);
@@ -647,10 +686,12 @@ export default function Investigation() {
         setBulkUploadTestId("");
         // Refresh data
         refreshData(startDate, endDate);
+      } else {
+        showToast(response.error || "Bulk upload failed", "error");
       }
     } catch (error) {
       console.error("Bulk upload error:", error);
-      showToast(error.response?.data?.error || "Bulk upload failed", "error");
+      showToast("Bulk upload failed", "error");
     } finally {
       setIsBulkUploading(false);
       setBulkUploadProgress(0);
@@ -688,13 +729,13 @@ export default function Investigation() {
       const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
       const testResults = emp.test_results || []
 
-      const pendingList = chcBillable.filter(bt => {
-        const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-        return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
-      })
+      const pendingList = chcBillable.filter(bt => !isTestCompleted(emp, bt, testResults))
 
       const overallApproved = pendingList.length === 0
       const hasNoFiles = chcBillable.every(bt => {
+        if (String(bt.test_id || "").toUpperCase() === "CHCT001") {
+          return true; // Ophthalmology typically doesn't have files
+        }
         const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
         return saved ? (saved.files || []).length === 0 : true
       })
@@ -734,8 +775,7 @@ export default function Investigation() {
       const bt = chcBillable.find(b => (b.test_name || b.testname) === pendingTestFilter)
       if (!bt) return false
       
-      const saved = testResults.find(t => String(t.test_id) === String(bt.test_id))
-      const isCompleted = saved ? (bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true) : false
+      const isCompleted = isTestCompleted(emp, bt, testResults)
       return !isCompleted
     })
   }, [filteredEmployeesForStats, pendingTestFilter])
@@ -759,13 +799,9 @@ export default function Investigation() {
           }
           stats[testName].total += 1
           
-          // Check if there is a saved result for this test
-          const saved = results.find(t => String(t.test_id) === String(bt.test_id))
-          if (saved) {
-            const isDone = bt.is_fileuploaded ? (saved.files && saved.files.length > 0) : true
-            if (isDone) {
-              stats[testName].completed += 1
-            }
+          const isDone = isTestCompleted(emp, bt, results)
+          if (isDone) {
+            stats[testName].completed += 1
           }
         }
       })
@@ -910,20 +946,27 @@ export default function Investigation() {
     }
 
     try {
-      const empRes = await axios.get(empUrl)
-      const employeesData = empRes.data || []
-      const invRes = await axios.get(invUrl)
-      const investigationsData = invRes.data || []
+      const empRes = await apiRequest(empUrl, "GET")
+      const invRes = await apiRequest(invUrl, "GET")
 
-      const merged = employeesData.map((emp) => {
-        // Improved matching: use barcode if available, else fallback to employee_id
-        const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
-        return inv ? { ...emp, ...inv } : emp
-      })
+      if (empRes.success && invRes.success) {
+        const employeesData = empRes.data || []
+        const investigationsData = invRes.data || []
 
-      setEmployees(merged)
-      setLoading(false)
-      return merged
+        const merged = employeesData.map((emp) => {
+          // Improved matching: use barcode if available, else fallback to employee_id
+          const inv = investigationsData.find((i) => (i.barcode && emp.barcode && i.barcode === emp.barcode) || (i.employee_id === emp.employee_id && !i.barcode))
+          return inv ? { ...emp, ...inv } : emp
+        })
+
+        setEmployees(merged)
+        setLoading(false)
+        return merged
+      } else {
+        setLoading(false)
+        showToast("Failed to fetch employees or investigations data", "error")
+        return []
+      }
     } catch (err) {
       setLoading(false)
       throw err
@@ -1054,7 +1097,7 @@ export default function Investigation() {
             complaints: "",
             remarks: "",
           };
-          const savedVA = parseJson(selectedEmployee.visual_acuity, defaultVA);
+          const savedVA = parseJson(selectedEmployee.CHCT001 || selectedEmployee.visual_acuity, defaultVA);
           const mergedVA = { ...defaultVA };
           Object.keys(defaultVA).forEach(key => {
             if (savedVA && savedVA[key]) {
@@ -1171,13 +1214,13 @@ export default function Investigation() {
     if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return
 
     try {
-      const resp = await axios.post(`${Labbaseurl}delete_file_from_investigation/`, {
+      const resp = await apiRequest(`${Labbaseurl}delete_file_from_investigation/`, 'POST', {
         barcode: form.barcode,
         test_id: form.test_results[testIdx].test_id,
         file_id: fileId
       })
 
-      if (resp.data.status === "success") {
+      if (resp.success && resp.data.status === "success") {
         showToast("File deleted successfully", "success")
         // Update local state to remove the file ID
         setForm(prev => {
@@ -1185,10 +1228,12 @@ export default function Investigation() {
           newTests[testIdx].files = newTests[testIdx].files.filter(fid => fid !== fileId)
           return { ...prev, test_results: newTests }
         })
+      } else {
+        showToast(resp.error || "Failed to delete file", "error")
       }
     } catch (err) {
       console.error("Delete error:", err)
-      showToast(err.response?.data?.error || "Failed to delete file", "error")
+      showToast("Failed to delete file", "error")
     }
   }
 
@@ -1354,8 +1399,9 @@ export default function Investigation() {
         }
       })
 
-      await axios.post(`${Labbaseurl}save_investigation/`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await apiRequest(`${Labbaseurl}save_investigation/`, 'POST', fd, {
+        "Content-Type": "multipart/form-data"
+      }, {
         onUploadProgress: (evt) => {
           if (evt.total) {
             const percent = Math.round((evt.loaded * 100) / evt.total)
@@ -1364,11 +1410,17 @@ export default function Investigation() {
         },
       })
 
-      showToast("Investigation results saved successfully!", "success")
-      handleBackToList()
-      await refreshData(startDate, endDate)
-      setUploading(false)
-      setProgress(0)
+      if (res.success) {
+        showToast("Investigation results saved successfully!", "success")
+        handleBackToList()
+        await refreshData(startDate, endDate)
+        setUploading(false)
+        setProgress(0)
+      } else {
+        showToast(res.error || "Failed to save investigation. Please check your data.", "error")
+        setUploading(false)
+        setProgress(0)
+      }
     } catch (err) {
       console.error("Submit error:", err)
       showToast("Failed to save investigation. Please check your data.", "error")
@@ -1667,10 +1719,7 @@ export default function Investigation() {
                   const billable = emp.billing_testdetails || []
                   const chcBillable = billable.filter(bt => String(bt.test_id || "").toUpperCase().startsWith("CHCT"))
                   const results = emp.test_results || []
-                  const pendingTests = chcBillable.filter(bt => {
-                    const saved = results.find(t => String(t.test_id) === String(bt.test_id))
-                    return saved ? (bt.is_fileuploaded ? !(saved.files && saved.files.length > 0) : false) : true
-                  })
+                  const pendingTests = chcBillable.filter(bt => !isTestCompleted(emp, bt, results))
 
                   return (
                     <TableRow key={emp.barcode || emp.employee_id} style={{ background: hasVitals(emp) ? "#e6ffe6" : "inherit" }}>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import styled from "styled-components"
+import apiRequest from "./apiRequest"
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
@@ -179,10 +180,17 @@ const SampleCollection = () => {
   const Labbaseurl = process.env.REACT_APP_BACKEND_LAB_BASE_URL
 
   useEffect(() => {
-    fetch(`${Labbaseurl}companies/`)
-      .then(r => r.json())
-      .then(data => setCompanies(Array.isArray(data) ? data : []))
-      .catch(console.error);
+    const fetchCompanies = async () => {
+      try {
+        const res = await apiRequest(`${Labbaseurl}companies/`, "GET");
+        if (res.success) {
+          setCompanies(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCompanies();
     
     // Initial fetch for all patients
     fetchPatients();
@@ -196,8 +204,6 @@ const SampleCollection = () => {
     setError("")
     setSuccess("")
 
-    // Made company optional
-
     try {
       const queryParams = new URLSearchParams()
       queryParams.append("from_date",  filters.from_date)
@@ -206,11 +212,12 @@ const SampleCollection = () => {
       if (filters.employee_id) queryParams.append("employee_id", filters.employee_id)
       if (filters.barcode)     queryParams.append("barcode",     filters.barcode)
 
-      const response = await fetch(`${Labbaseurl}billing/patients/?${queryParams}`)
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
-      setPatients(data.results || data)
+      const response = await apiRequest(`${Labbaseurl}billing/patients/?${queryParams}`, "GET")
+      if (response.success) {
+        setPatients(response.data.results || response.data)
+      } else {
+        throw new Error(response.error || "Failed to fetch patients")
+      }
     } catch (err) {
       console.error("Error fetching patients:", err)
       setError(`Failed to fetch patients: ${err.message}`)
@@ -331,22 +338,19 @@ const SampleCollection = () => {
         date:         filters.from_date,
       }
 
-      const response = await fetch(
+      const response = await apiRequest(
         `${Labbaseurl}samples/?company_id=${selectedPatient.company_id}&barcode=${selectedPatient.barcode}`,
-        {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(sampleData),
-        })
+        "POST",
+        sampleData
+      )
 
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.message || `HTTP error! status: ${response.status}`)
+      if (response.success) {
+        setSuccess("Sample data saved successfully!")
+        // Refresh list — patients whose every test is now Collected will disappear
+        setTimeout(() => { closeModal(); fetchPatients() }, 1500)
+      } else {
+        throw new Error(response.error || "Failed to save sample data")
       }
-
-      setSuccess("Sample data saved successfully!")
-      // Refresh list — patients whose every test is now Collected will disappear
-      setTimeout(() => { closeModal(); fetchPatients() }, 1500)
     } catch (err) {
       console.error("Error saving test data:", err)
       setError(`Failed to save test data: ${err.message}`)

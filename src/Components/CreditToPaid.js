@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import apiRequest from './apiRequest';
 import { Search, CreditCard, Calendar, User, Barcode, CheckCircle } from 'lucide-react';
 
 const Container = styled.div`
@@ -251,8 +251,8 @@ const CreditToPaid = () => {
   const fetchBillings = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${base_url}get_credit_billings/?from_date=${fromDate}&to_date=${toDate}`);
-      if (res.data.status === 'success') {
+      const res = await apiRequest(`${base_url}get_credit_billings/?from_date=${fromDate}&to_date=${toDate}`);
+      if (res.success && res.data.status === 'success') {
         setBillings(res.data.data);
       }
     } catch (err) {
@@ -274,17 +274,19 @@ const CreditToPaid = () => {
 
   const handleMarkAsPaid = async () => {
     try {
-      const res = await axios.post(`${base_url}mark_as_paid/`, {
+      const res = await apiRequest(`${base_url}mark_as_paid/`, 'POST', {
         id: selectedBill.id,
         barcode: selectedBill.barcode,
         transaction_id: transactionId,
         payment_method: paymentMethod
       });
 
-      if (res.data.status === 'success') {
+      if (res.success && res.data.status === 'success') {
         toast.success('Payment updated successfully');
         setShowModal(false);
         fetchBillings();
+      } else {
+        toast.error(res.error || 'Failed to update payment');
       }
     } catch (err) {
       toast.error('Failed to update payment');
