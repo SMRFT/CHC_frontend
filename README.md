@@ -1,70 +1,144 @@
-# Getting Started with Create React App
+# Corporate Health Checkup (CHC) - Frontend Application
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, responsive Single Page Application (SPA) built with **React 18** and **Styled Components** for managing end-to-end Corporate Health Checkups, clinical investigations, employee registrations, billing, sample accessioning, batch management, doctor approvals, and comprehensive multi-parameter diagnostic reports.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Overview & Architecture
 
-### `npm start`
+The **CHC Frontend** is part of the Corporate Health Checkup suite. It interfaces with the Django REST Framework backend via a centralized, JWT-authenticated API request layer and communicates with hybrid storage (PostgreSQL + MongoDB / GridFS).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```mermaid
+flowchart TB
+    subgraph UI ["User Interface (React 18 + Styled Components)"]
+        Dashboard["📊 Dashboard"]
+        Registration["📝 Registration & Billing"]
+        Investigation["🔬 Investigation & Vitals"]
+        Samples["🧪 Sample Collection & Batches"]
+        Approvals["👨‍⚕️ Doctor Approvals"]
+        Reports["📄 Reports & Print Hub"]
+    end
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+    subgraph Core ["State & Communication"]
+        Router["React Router DOM"]
+        APIClient["apiRequest.js (Axios)"]
+    end
 
-### `npm test`
+    subgraph Backend ["CHC Backend"]
+        DRF["Django REST Framework (/ _b_a_c_k_e_n_d/CHC/)"]
+    end
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+    UI --> Router --> APIClient --> DRF
+```
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 📦 Tech Stack
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Core**: React 18, React DOM, React Scripts, Craco
+- **Styling**: Styled Components, Lucide React (Icons)
+- **State & Form Controls**: React-Datepicker, Axios
+- **Data Visualization**: Recharts, Chart.js
+- **Export & Print**: Custom CSS `@page` print engines, HTML iframe isolation, CSV exports
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## 📂 Project Structure
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
+CHC_frontend/
+├── public/
+│   ├── index.html              # HTML shell
+│   └── favicon.ico
+├── src/
+│   ├── App.js                  # Main Application Component & Navigation Routing
+│   ├── index.js                # React Root & Global Providers
+│   ├── index.css               # Global Reset & Typography
+│   └── Components/
+│       ├── apiRequest.js                   # Central Axios client with token/header handling
+│       ├── GlobalStyles.js                 # Shared UI tokens, themes, buttons & cards
+│       ├── Sidebar.js                      # Navigation sidebar
+│       ├── Login.js                        # Authentication & Role routing
+│       ├── Dashboard.js                    # Analytics, checkup metrics & charts
+│       ├── EmployeeRegistration.js         # Employee onboarding & bulk upload
+│       ├── RegisteredEmployees.js          # Employee directory & profile viewing
+│       ├── RegistrationEdition.js          # Edit employee registration data
+│       ├── PackageCreation.js              # Health package & dynamic test definition
+│       ├── Investigation.js                # Clinical tests, vitals, dynamic field entry & file upload
+│       ├── InvestigationChecklist.js       # Real-time investigation progress tracking
+│       ├── DoctorApprovalInvestigations.js # Pathologist / Doctor review & approval
+│       ├── DoctorApprovalOphthalmology.js  # Eye clinic review & approval
+│       ├── OverAllApproveReport.js         # Final comprehensive checkup sign-off
+│       ├── CHCReport.js                    # Patient report compilation & PDF viewer
+│       ├── SampleCollection.js             # Barcode scanning & sample collection
+│       ├── SampleTransfer.js               # Sample dispatch & handover
+│       ├── BatchGeneration.js              # Specimen grouping into batches
+│       ├── GeneratedBatch.js               # Batch tracking & dispatch history
+│       ├── CreditToPaid.js                 # Credit settlement & payment reconciliation
+│       ├── PaymentReport.js                # Financial billing summaries
+│       ├── OffsitePatients.js              # Camp / off-site checkup management
+│       └── Images/                         # Report headers, footers & branding assets
+├── .env                        # Environment configuration
+├── craco.config.js             # Webpack customization
+└── package.json                # Dependencies and scripts
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## ⚙️ Environment Configuration
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Create or configure the [`.env`](file:///d:/SMRFT/Projects/CHC/CHC_frontend/.env) file in the root of `CHC_frontend`:
 
-## Learn More
+```env
+REACT_APP_BACKEND_LAB_BASE_URL=https://shinova.in/_b_a_c_k_e_n_d/CHC/
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+> [!IMPORTANT]
+> Always end the base URL with a trailing slash (`/`). The `apiRequest.js` utility appends relative endpoints directly.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## 🛠 Setup & Development
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-### Analyzing the Bundle Size
+### 2. Run Development Server
+```bash
+npm start
+```
+The application will launch on `http://localhost:3000`.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 3. Production Build
+```bash
+npm run build
+```
+Creates an optimized production bundle in the `build/` folder.
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 🔑 Key Modules & Features
 
-### Advanced Configuration
+1. **Investigation Management (`Investigation.js`)**:
+   - Vitals recording (Height, Weight, BMI calculation, BP, SpO2).
+   - Dynamic parameter groups (e.g. Whole Body, Trunk, Arm, Leg composition, Doctor Comments).
+   - Multi-file attachments (ECHO, ECG, PFT, Ultrasound, X-Ray) uploaded via GridFS.
+   - Ophthalmology acuity records (Near/Distance vision, Color vision, Ocular movement).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+2. **Accessioning & Sample Tracking (`SampleCollection.js`, `BatchGeneration.js`)**:
+   - Barcode-driven sample verification and status updating.
+   - Multi-specimen batch grouping and physical courier dispatch logging.
 
-### Deployment
+3. **Report Generation & Isolated Print Engines (`CHCReport.js`)**:
+   - High-fidelity clinical report templates with fixed header/footer branding.
+   - Isolated hidden iframe printing (`@page { size: portrait; margin: 10mm; }`).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+---
 
-### `npm run build` fails to minify
+## 🛡️ Coding Standards
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Use the central [`apiRequest.js`](file:///d:/SMRFT/Projects/CHC/CHC_frontend/src/Components/apiRequest.js) wrapper for all API calls.
+- Never hardcode company identifiers (e.g. `"CHC002"`). Always resolve company and employee IDs dynamically.
+- When creating `FormData`, guard against appending `undefined` or `null` which strings as `"undefined"`.
