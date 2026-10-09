@@ -536,6 +536,7 @@ export default function Investigation() {
     age: "",
     gender: "",
     barcode: "",
+    company_id: "",
     vitals: { height_cm: "", weight_kg: "", bmi: "", blood_pressure: "", spo2: "" },
     patient_history: "No Clinical History",
     visual_acuity: {
@@ -969,8 +970,13 @@ export default function Investigation() {
               return baseField
             })
 
+            const resolvedCompanyId = (inv.company_id && inv.company_id !== "undefined" && inv.company_id !== "null")
+              ? inv.company_id
+              : (emp.company_id && emp.company_id !== "undefined" && emp.company_id !== "null" ? emp.company_id : "");
+
             return {
               ...emp,
+              company_id: resolvedCompanyId,
               status: inv.status || emp.status || "pending",
               patient_history: inv.patient_history || emp.patient_history || "",
               vitals: (inv.vitals && Object.keys(inv.vitals).length > 0) ? inv.vitals : emp.vitals,
@@ -1180,6 +1186,7 @@ export default function Investigation() {
         age: selectedEmployee.age,
         gender: selectedEmployee.gender,
         barcode: selectedEmployee.barcode,
+        company_id: (selectedEmployee.company_id && selectedEmployee.company_id !== "undefined" && selectedEmployee.company_id !== "null") ? selectedEmployee.company_id : "",
         vitals: parseJson(selectedEmployee.vitals),
         patient_history: selectedEmployee.patient_history || "No Clinical History",
         visual_acuity: (() => {
@@ -1482,7 +1489,13 @@ export default function Investigation() {
         (e.barcode && e.barcode === form.barcode) ||
         (e.employee_id && e.employee_id === form.employee_id)
       );
-      fd.append("company_id", empData?.company_id || "CHC002")
+      const companyId = (form.company_id && form.company_id !== "undefined" && form.company_id !== "null")
+        ? form.company_id
+        : (empData?.company_id && empData.company_id !== "undefined" && empData.company_id !== "null" ? empData.company_id : "");
+
+      if (companyId) {
+        fd.append("company_id", companyId);
+      }
 
       const vitalsToSend = {
         height_cm: form.vitals.height_cm || "",
